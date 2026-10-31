@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Taaza · తాజా</title>
+  <meta name="description" content="Ad-free news in English & Telugu with local city news and daily gold rates. Installable, works offline." />
+  <meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="format-detection" content="telephone=no" />
+  <!-- Installable app: Android/Chrome reads the manifest; iOS Safari reads the apple-* tags -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Taaza" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <!-- Telugu web font (only the Telugu subset is downloaded, and only when Telugu text is shown) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <script>
+    // Apply theme + language before first paint to avoid a flash.
+    try {
+      const s = JSON.parse(localStorage.getItem('pnd.v1') || '{}');
+      if (s.theme && s.theme !== 'auto') document.documentElement.dataset.theme = s.theme;
+      if (s.uiLang) document.documentElement.lang = s.uiLang;
+    } catch {}
+  </script>
+</head>
+<body>
+  <header class="appbar">
+    <div class="appbar-inner">
+      <a class="brand" href="#/home" aria-label="Home">
+        <img class="brand-mark" src="assets/icon.svg" alt="" width="28" height="28" />
+        <span class="brand-text" id="appbar-title">Taaza</span>
+      </a>
+      <nav class="tabs-top" aria-label="Sections"></nav>
+      <div class="appbar-actions">
+        <span class="updated" id="updated" aria-live="polite"></span>
+        <div class="seg" role="group" aria-label="Language">
+          <button type="button" class="seg-btn" data-lang="en" lang="en">EN</button>
+          <button type="button" class="seg-btn" data-lang="te" lang="te">తె</button>
+        </div>
+        <button type="button" class="icon-btn" id="btn-refresh" title="Refresh">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="sr-only">Refresh</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="ptr" id="ptr" aria-hidden="true"><span class="ptr-spinner"></span><span class="ptr-text"></span></div>
+
+  <main id="main">
+    <!-- HOME: my city — gold summary + city news -->
+    <section class="view" id="view-home" data-view="home" hidden>
+      <div class="install-banner" id="install-banner" hidden></div>
+      <div class="home-grid">
+        <div class="home-gold" id="home-gold"></div>
+        <div class="feed-panel" id="home-feed">
+          <div class="feed-head">
+            <h2 class="feed-title"></h2>
+            <button type="button" class="btn btn-live"><span class="live-dot" aria-hidden="true"></span><span data-t="live">Live</span></button>
+          </div>
+          <p class="news-status" aria-live="polite"></p>
+          <ol class="feed"></ol>
+          <button type="button" class="btn btn-more" hidden></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEWS: all topics -->
+    <section class="view" id="view-news" data-view="news" hidden>
+      <nav class="topics" aria-label="Topics">
+        <div class="topics-scroll" id="topics" role="tablist"></div>
+        <button type="button" class="chip chip-edit" id="btn-edit-topics" title="Edit topics">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span class="sr-only" data-t="editTopics">Edit topics</span>
+        </button>
+      </nav>
+      <div class="feed-panel" id="news-feed">
+        <div class="feed-head">
+          <h2 class="feed-title"></h2>
+          <div class="feed-tools">
+            <label class="search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <input type="search" autocomplete="off" enterkeyhint="search" />
+            </label>
+            <button type="button" class="btn btn-live"><span class="live-dot" aria-hidden="true"></span><span data-t="live">Live</span></button>
+          </div>
+        </div>
+        <p class="news-status" aria-live="polite"></p>
+        <ol class="feed"></ol>
+        <button type="button" class="btn btn-more" hidden></button>
+        <p class="hint muted" data-t="shortcuts"></p>
+      </div>
+    </section>
+
+    <!-- GOLD: full tracker -->
+    <section class="view" id="view-gold" data-view="gold" hidden></section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings" data-view="settings" hidden></section>
+  </main>
+
+  <nav class="tabbar" id="tabbar" aria-label="Sections"></nav>
+
+  <dialog class="sheet" id="dlg-topics" aria-labelledby="dlg-topics-title"></dialog>
+  <dialog class="sheet" id="dlg-welcome" aria-labelledby="dlg-welcome-title"></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>

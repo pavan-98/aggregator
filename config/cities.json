@@ -1,0 +1,316 @@
+{
+  "$comment": "One list of cities drives both the gold tracker and city news. Users pick their city on first launch (the first city is pre-selected). For each city the build makes a news topic from Google News (English + Telugu, searching the names in 'aliases') plus the region's feeds filtered to stories that mention the city. 'groww' = groww.in slug (gold, primary), 'gr' = goodreturns.in slug (gold, backup, optional), 'short' = short label for the tab bar, 'feeds' = extra feeds just for this city.",
+  "regionFeeds": {
+    "ap": {
+      "te": [
+        {
+          "name": "Andhrajyothy",
+          "url": "https://www.andhrajyothy.com/rss/feed.xml",
+          "max": 1000
+        },
+        {
+          "name": "TV9 Telugu",
+          "url": "https://tv9telugu.com/andhra-pradesh/feed"
+        },
+        {
+          "name": "NTV Telugu",
+          "url": "https://ntvtelugu.com/andhra-pradesh-news/feed"
+        },
+        {
+          "name": "Asianet Telugu",
+          "url": "https://telugu.asianetnews.com/rss/andhra-pradesh"
+        }
+      ]
+    },
+    "ts": {
+      "te": [
+        {
+          "name": "TV9 Telugu",
+          "url": "https://tv9telugu.com/feed"
+        },
+        {
+          "name": "V6 Velugu",
+          "url": "https://www.v6velugu.com/feed"
+        },
+        {
+          "name": "10TV",
+          "url": "https://www.10tv.in/feed"
+        },
+        {
+          "name": "NTV Telugu",
+          "url": "https://ntvtelugu.com/feed"
+        }
+      ],
+      "en": [
+        {
+          "name": "Telangana Today",
+          "url": "https://telanganatoday.com/feed"
+        },
+        {
+          "name": "Deccan Chronicle",
+          "url": "https://www.deccanchronicle.com/google_feeds.xml"
+        }
+      ]
+    }
+  },
+  "cities": [
+    {
+      "id": "hyderabad",
+      "name": {
+        "en": "Hyderabad",
+        "te": "హైదరాబాద్"
+      },
+      "region": "ts",
+      "aliases": {
+        "en": [
+          "Hyderabad",
+          "Secunderabad"
+        ],
+        "te": [
+          "హైదరాబాద్",
+          "సికింద్రాబాద్"
+        ]
+      },
+      "groww": "hyderabad",
+      "gr": "hyderabad"
+    },
+    {
+      "id": "visakhapatnam",
+      "name": {
+        "en": "Visakhapatnam",
+        "te": "విశాఖపట్నం"
+      },
+      "short": {
+        "en": "Vizag",
+        "te": "విశాఖ"
+      },
+      "region": "ap",
+      "aliases": {
+        "en": [
+          "Visakhapatnam",
+          "Vizag"
+        ],
+        "te": [
+          "విశాఖపట్నం",
+          "విశాఖ",
+          "వైజాగ్"
+        ]
+      },
+      "groww": "visakhapatnam",
+      "gr": "visakhapatnam",
+      "feeds": {
+        "en": [
+          {
+            "name": "Vizag Vision",
+            "url": "https://www.vizagvision.com/feed/"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vijayawada",
+      "name": {
+        "en": "Vijayawada",
+        "te": "విజయవాడ"
+      },
+      "region": "ap",
+      "aliases": {
+        "en": [
+          "Vijayawada",
+          "Bezawada"
+        ],
+        "te": [
+          "విజయవాడ",
+          "బెజవాడ"
+        ]
+      },
+      "groww": "vijayawada",
+      "gr": "vijayawada"
+    },
+    {
+      "id": "guntur",
+      "name": {
+        "en": "Guntur",
+        "te": "గుంటూరు"
+      },
+      "region": "ap",
+      "aliases": {
+        "en": [
+          "Guntur"
+        ],
+        "te": [
+          "గుంటూరు"
+        ]
+      },
+      "groww": "guntur"
+    },
+    {
+      "id": "warangal",
+      "name": {
+        "en": "Warangal",
+        "te": "వరంగల్"
+      },
+      "region": "ts",
+      "aliases": {
+        "en": [
+          "Warangal",
+          "Hanamkonda"
+        ],
+        "te": [
+          "వరంగల్",
+          "హనుమకొండ"
+        ]
+      },
+      "groww": "warangal"
+    },
+    {
+      "id": "tirupati",
+      "name": {
+        "en": "Tirupati",
+        "te": "తిరుపతి"
+      },
+      "region": "ap",
+      "aliases": {
+        "en": [
+          "Tirupati",
+          "Tirumala"
+        ],
+        "te": [
+          "తిరుపతి",
+          "తిరుమల"
+        ]
+      },
+      "groww": "tirupati"
+    },
+    {
+      "id": "nellore",
+      "name": {
+        "en": "Nellore",
+        "te": "నెల్లూరు"
+      },
+      "region": "ap",
+      "aliases": {
+        "en": [
+          "Nellore"
+        ],
+        "te": [
+          "నెల్లూరు"
+        ]
+      },
+      "groww": "nellore"
+    },
+    {
+      "id": "rajahmundry",
+      "name": {
+        "en": "Rajahmundry",
+        "te": "రాజమహేంద్రవరం"
+      },
+      "short": {
+        "en": "Rajahmundry",
+        "te": "రాజమండ్రి"
+      },
+      "region": "ap",
+      "aliases": {
+        "en": [
+          "Rajahmundry",
+          "Rajamahendravaram"
+        ],
+        "te": [
+          "రాజమహేంద్రవరం",
+          "రాజమండ్రి"
+        ]
+      },
+      "groww": "rajahmundry"
+    },
+    {
+      "id": "kakinada",
+      "name": {
+        "en": "Kakinada",
+        "te": "కాకినాడ"
+      },
+      "region": "ap",
+      "aliases": {
+        "en": [
+          "Kakinada"
+        ],
+        "te": [
+          "కాకినాడ"
+        ]
+      },
+      "groww": "kakinada"
+    },
+    {
+      "id": "chennai",
+      "name": {
+        "en": "Chennai",
+        "te": "చెన్నై"
+      },
+      "region": null,
+      "aliases": {
+        "en": [
+          "Chennai"
+        ],
+        "te": [
+          "చెన్నై"
+        ]
+      },
+      "groww": "chennai",
+      "gr": "chennai"
+    },
+    {
+      "id": "bangalore",
+      "name": {
+        "en": "Bengaluru",
+        "te": "బెంగళూరు"
+      },
+      "region": null,
+      "aliases": {
+        "en": [
+          "Bengaluru",
+          "Bangalore"
+        ],
+        "te": [
+          "బెంగళూరు"
+        ]
+      },
+      "groww": "bangalore",
+      "gr": "bangalore"
+    },
+    {
+      "id": "mumbai",
+      "name": {
+        "en": "Mumbai",
+        "te": "ముంబై"
+      },
+      "region": null,
+      "aliases": {
+        "en": [
+          "Mumbai"
+        ],
+        "te": [
+          "ముంబై"
+        ]
+      },
+      "groww": "mumbai",
+      "gr": "mumbai"
+    },
+    {
+      "id": "delhi",
+      "name": {
+        "en": "Delhi",
+        "te": "ఢిల్లీ"
+      },
+      "region": null,
+      "aliases": {
+        "en": [
+          "Delhi"
+        ],
+        "te": [
+          "ఢిల్లీ"
+        ]
+      },
+      "groww": "delhi",
+      "gr": "delhi"
+    }
+  ]
+}
