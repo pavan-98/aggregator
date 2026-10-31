@@ -29,7 +29,7 @@ Cities: Hyderabad, Visakhapatnam, Vijayawada, Guntur, Warangal, Tirupati, Nellor
 
 ## Install on your phone
 
-Open **https://pavan-98.github.io/aggregator/**, pick your city, then:
+Open **https://pavan-98.github.io/aggregator/** on your phone and pick your city. Taaza then offers to install itself, with a one-tap **Install** button on Android or step-by-step instructions on iPhone. You can also install it manually:
 
 - **Android (Chrome, Edge, Samsung Internet):** tap **Install app** in the banner, or ⋮ → *Install app*. It installs like a normal app, with long-press shortcuts to *Gold* and *News*.
 - **iPhone / iPad:** open the link in **Safari** → tap **Share** → **Add to Home Screen**. iOS only allows installing from Safari.

@@ -447,6 +447,26 @@ table.kt { width: 100%; border-collapse: collapse; font-variant-numeric: tabular
 .city-grid .chip[aria-checked='true'] { background: var(--text); color: var(--bg); border-color: var(--text); }
 .btn-block { width: 100%; min-height: 48px; font-size: 16px; }
 
+/* ============ install sheet (phones) ============ */
+.install-sheet:focus, .welcome:focus { outline: none; }
+.install-sheet { display: grid; gap: 14px; padding: 26px 20px 20px; }
+.install-sheet .is-icon { width: 72px; height: 72px; border-radius: 18px; justify-self: center; box-shadow: 0 6px 20px rgb(31 95 191 / 0.25); }
+.install-sheet h2 { margin: 0; font-size: 22px; text-align: center; letter-spacing: -0.01em; }
+.is-why { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.is-why li { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; color: var(--text-2); }
+.is-why li::before { content: '✓'; flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; color: var(--accent-ink); background: var(--accent); }
+.is-steps { list-style: none; margin: 0; padding: 12px; display: grid; gap: 12px; background: var(--surface-2); border-radius: 14px; }
+.is-step { display: flex; gap: 12px; align-items: flex-start; }
+.is-step strong { display: flex; align-items: center; gap: 8px; font-size: 15px; flex-wrap: wrap; }
+.is-step small { display: block; color: var(--text-3); font-size: 12.5px; margin-top: 2px; }
+.is-num { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px;
+  background: var(--surface); border: 1px solid var(--border); }
+.is-ico { display: inline-grid; place-items: center; min-width: 30px; height: 28px; padding: 0 6px; border-radius: 8px; color: var(--accent);
+  background: var(--surface); border: 1px solid var(--border); font-size: 18px; }
+.is-ico svg { width: 18px; height: 18px; }
+.is-note { margin: 0; font-size: 14.5px; color: var(--text-2); }
+
 /* ============ dialog (bottom sheet on phones) ============ */
 .sheet {
   border: 1px solid var(--border); border-radius: 20px; padding: 0; width: min(560px, calc(100vw - 24px));

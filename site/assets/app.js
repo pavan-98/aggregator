@@ -22,11 +22,12 @@ const DEFAULTS = {
   muted: [],
   proxy: '',
   installDismissed: 0,
+  install: { visits: 0, shown: 0, last: 0 }, // full-screen install sheet schedule
 };
 function load() {
   let stored = {};
   try { stored = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch {}
-  const s = { ...DEFAULTS, ...stored };
+  const s = { ...structuredClone(DEFAULTS), ...stored };
   if (stored.schema && stored.schema < 3) {
     // v2 → v3: the per-city 'vizag' topic became the generic 'my-city' topic.
     const swap = (id) => (id === 'vizag' ? 'my-city' : id);
@@ -735,43 +736,152 @@ async function pollSpot() {
 }
 
 // ================================================================== install (Android + iOS)
+// Browsers never install a site by themselves: on Android Chromium we can open the
+// native install dialog from a tap; everywhere else we show the exact steps.
+// Phones get a full-screen "Install" sheet — first visit after picking a city, again
+// around the 3rd visit, then at most every 14 days — plus a small banner on Home and a
+// permanent entry in Settings. Nothing is shown inside the installed app.
 let deferredPrompt = null;
+let waitingForPrompt = false;
+let sheetShownThisLoad = false;
+let redrawInstallSheet = null;
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const ua = navigator.userAgent;
 const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isIOSSafari = isIOS && /safari/i.test(ua) && !/crios|fxios|edgios|opios|gsa\//i.test(ua);
+const isAndroid = /android/i.test(ua);
+const isMobile = isIOS || isAndroid;
+// Social apps' built-in browsers can't install web apps.
+const isInApp = /FBAN|FBAV|FB_IAB|Instagram|Line\/|LinkedInApp|Snapchat|Telegram|; wv\)/i.test(ua);
+
+function installEnv() {
+  if (isStandalone()) return 'installed';
+  if (isInApp && isMobile) return 'inapp';
+  if (deferredPrompt) return 'prompt'; // Chrome / Edge / Samsung Internet (Android or desktop)
+  if (isIOS) return 'ios'; // Safari, and Chrome/Edge/Firefox on iOS 16.4+
+  if (isAndroid) return /firefox/i.test(ua) ? 'menu-firefox' : 'menu';
+  return 'desktop';
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
+  e.preventDefault(); // keep it for our own button instead of the browser's mini-infobar
   deferredPrompt = e;
+  redrawInstallSheet?.();
   renderInstallBanner();
   if (view === 'settings') renderSettings();
+  if (waitingForPrompt) { waitingForPrompt = false; maybeAutoInstallSheet(); }
 });
-window.addEventListener('appinstalled', () => { deferredPrompt = null; renderInstallBanner(); toast(t('installed')); });
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  $('#dlg-install').open && $('#dlg-install').close();
+  renderInstallBanner();
+  if (view === 'settings') renderSettings();
+  toast(t('installed'));
+});
 
 async function promptInstall() {
   if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice.catch(() => {});
-  deferredPrompt = null;
+  const p = deferredPrompt;
+  deferredPrompt = null; // a prompt can be used only once
+  p.prompt();
+  const choice = await p.userChoice.catch(() => ({}));
+  if (choice.outcome === 'accepted') $('#dlg-install').open && $('#dlg-install').close();
+  else redrawInstallSheet?.();
   renderInstallBanner();
   if (view === 'settings') renderSettings();
 }
-function installBlock() {
-  if (isStandalone()) return h('p', { class: 'muted', style: 'margin:0', text: t('installed') });
-  if (deferredPrompt) return h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn btn-primary', onclick: promptInstall }, svg(ICON.plusSq), t('install')));
-  if (isIOS) return h('div', { class: 'ios-steps' }, svg(ICON.share), h('span', { text: isIOSSafari ? t('iosInstall') : t('iosInstallOther') }));
-  return h('div', { class: 'ios-steps' }, svg(ICON.plusSq), h('span', { text: t('installHint') }));
+
+async function copyLink() {
+  const url = location.origin + location.pathname;
+  try { await navigator.clipboard.writeText(url); toast(t('linkCopied')); } catch { window.prompt(t('copyLink'), url); }
 }
+
+function installDue() {
+  const s = state.install;
+  if (!s.shown) return true; // first visit after choosing a city
+  if (s.shown === 1) return s.visits >= 3; // a gentle second ask
+  return Date.now() - s.last >= 14 * 864e5; // then at most every two weeks
+}
+function maybeAutoInstallSheet() {
+  if (!isMobile || !state.city || isStandalone() || sheetShownThisLoad || !installDue()) return;
+  const env = installEnv();
+  // Android Chrome/Edge/Samsung: only when the browser offers installation — it doesn't
+  // once the app is installed, so people who already have it aren't asked again.
+  if (env === 'menu') { waitingForPrompt = true; return; }
+  setTimeout(() => {
+    if (document.querySelector('dialog[open]') || isStandalone() || sheetShownThisLoad) return;
+    openInstallSheet({ auto: true });
+  }, 1200);
+}
+
+function openInstallSheet({ auto = false } = {}) {
+  const dlg = $('#dlg-install');
+  if (dlg.open) return;
+  const step = (n, title, hint, icon) => h('li', { class: 'is-step' },
+    h('span', { class: 'is-num', 'aria-hidden': 'true', text: String(n) }),
+    h('div', {}, h('strong', {}, title, icon ? h('span', { class: 'is-ico', 'aria-hidden': 'true' }, icon) : null), hint ? h('small', { text: hint }) : null));
+  const draw = () => {
+    const env = installEnv();
+    if (env === 'installed') { dlg.close(); return; }
+    let action;
+    if (env === 'prompt') {
+      action = h('button', { type: 'button', class: 'btn btn-primary btn-block', onclick: promptInstall }, svg(ICON.plusSq), t('installNow'));
+    } else if (env === 'ios') {
+      action = h('ol', { class: 'is-steps' },
+        step(1, t('iosStep1'), t('iosStep1Hint'), svg(ICON.share)),
+        step(2, t('iosStep2'), t('iosStep2Hint'), svg(ICON.plusSq)),
+        step(3, t('iosStep3')));
+    } else if (env === 'menu' || env === 'menu-firefox') {
+      action = h('ol', { class: 'is-steps' },
+        step(1, t('menuStep1'), null, h('b', { text: '⋮' })),
+        step(2, t(env === 'menu-firefox' ? 'menuStep2Firefox' : 'menuStep2'), null, svg(ICON.plusSq)));
+    } else if (env === 'inapp') {
+      action = [
+        h('p', { class: 'is-note', text: t('inappText') }),
+        h('ol', { class: 'is-steps' }, step(1, t('inappStep1'), t('inappStep1Hint')), step(2, t('inappStep2'))),
+        h('button', { type: 'button', class: 'btn btn-primary btn-block', onclick: copyLink }, t('copyLink')),
+      ];
+    } else {
+      action = h('p', { class: 'is-note', text: t('desktopHint') });
+    }
+    dlg.replaceChildren(h('div', { class: 'sheet-body install-sheet', tabindex: '-1', autofocus: true },
+      h('img', { class: 'is-icon', src: 'assets/icons/icon-192.png', alt: '', width: 72, height: 72 }),
+      h('h2', { id: 'dlg-install-title', text: t('installTitle') }),
+      h('ul', { class: 'is-why' }, ...['installWhy1', 'installWhy2', 'installWhy3'].map((k) => h('li', { text: t(k) }))),
+      action,
+      h('button', { type: 'button', class: 'btn btn-ghost btn-block', text: t('continueBrowser'), onclick: () => dlg.close() })));
+  };
+  redrawInstallSheet = draw;
+  draw();
+  if (auto) { state.install = { ...state.install, shown: state.install.shown + 1, last: Date.now() }; save(); }
+  sheetShownThisLoad = true;
+  renderInstallBanner();
+  dlg.addEventListener('close', () => { redrawInstallSheet = null; }, { once: true });
+  dlg.showModal();
+}
+
+function installBlock() {
+  const env = installEnv();
+  if (env === 'installed') return h('p', { class: 'muted', style: 'margin:0', text: t('installed') });
+  if (env === 'prompt') return h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn btn-primary', onclick: promptInstall }, svg(ICON.plusSq), t('install')));
+  if (env === 'desktop') return h('div', { class: 'ios-steps' }, svg(ICON.plusSq), h('span', { text: t('desktopHint') }));
+  return h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openInstallSheet() }, svg(ICON.plusSq), t('howToInstall')));
+}
+
 function renderInstallBanner() {
   const el = $('#install-banner');
+  const env = installEnv();
   const snoozed = Date.now() - (state.installDismissed || 0) < 14 * 864e5;
-  if (isStandalone() || snoozed || !(deferredPrompt || isIOS)) { el.hidden = true; return; }
-  el.hidden = false;
+  const show = !snoozed && !sheetShownThisLoad && (env === 'prompt' || (isMobile && env !== 'installed'));
+  el.hidden = !show;
+  if (!show) return;
+  const msg = env === 'prompt' ? t('installHint') : env === 'inapp' ? t('inappShort') : env === 'ios' ? t('iosInstall') : t('menuShort');
   el.replaceChildren(
     h('img', { src: 'assets/icons/icon-192.png', alt: '', width: 40, height: 40 }),
-    h('div', { class: 'ib-text' }, h('strong', { text: t('install') }), deferredPrompt ? t('installHint') : isIOSSafari ? t('iosInstall') : t('iosInstallOther')),
+    h('div', { class: 'ib-text' }, h('strong', { text: t('install') }), msg),
     h('div', { class: 'ib-actions' },
-      deferredPrompt ? h('button', { type: 'button', class: 'btn btn-primary', text: t('install'), onclick: promptInstall }) : null,
+      env === 'prompt'
+        ? h('button', { type: 'button', class: 'btn btn-primary', text: t('install'), onclick: promptInstall })
+        : h('button', { type: 'button', class: 'btn btn-primary', text: t('howShort'), onclick: () => openInstallSheet() }),
       h('button', { type: 'button', class: 'btn btn-ghost', text: t('notNow'), onclick: () => { state.installDismissed = Date.now(); save(); renderInstallBanner(); } })));
 }
 
@@ -785,7 +895,7 @@ function renderSettings() {
   const fileIn = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: importSettings });
 
   root.replaceChildren(h('div', { class: 'settings' },
-    card(t('install'), installBlock(), deferredPrompt && !isStandalone() ? h('small', { text: t('installHint') }) : null),
+    card(t('install'), installBlock(), installEnv() !== 'installed' ? h('small', { text: t('installHint') }) : null),
     card(t('myCity'),
       field(t('city'), h('select', { onchange: (e) => setCity(e.target.value) },
         ...(gold?.cityMeta || [{ id: state.city }]).map((c) => h('option', { value: c.id, selected: c.id === state.city, text: cityName(c.id) }))), t('myCityHint'))),
@@ -828,7 +938,7 @@ function openWelcome() {
   const cities = (gold?.cityMeta || []).filter((c) => gold.cities?.[c.id] || index.topics.some((x) => x.city === c.id));
   let pick = cities[0]?.id || '';
   const draw = () => {
-    dlg.replaceChildren(h('div', { class: 'sheet-body welcome' },
+    dlg.replaceChildren(h('div', { class: 'sheet-body welcome', tabindex: '-1', autofocus: true },
       h('img', { src: 'assets/icons/icon-192.png', alt: '', width: 56, height: 56 }),
       h('h2', { id: 'dlg-welcome-title', text: t('welcome') }),
       h('p', { class: 'muted', text: t('welcomeText') }),
@@ -840,7 +950,7 @@ function openWelcome() {
         h('button', { type: 'button', class: 'chip', role: 'radio', 'aria-checked': String(c.id === pick), 'aria-selected': String(c.id === pick),
           text: c.name?.[state.uiLang] || c.name?.en, onclick: () => { pick = c.id; draw(); } }))),
       h('button', { type: 'button', class: 'btn btn-primary btn-block', text: t('start'), disabled: !pick,
-        onclick: () => { state.city = pick; save(); dlg.close(); route(); } })));
+        onclick: () => { state.city = pick; save(); dlg.close(); route(); maybeAutoInstallSheet(); } })));
   };
   draw();
   dlg.addEventListener('cancel', (e) => e.preventDefault()); // a city is required
@@ -1026,7 +1136,7 @@ function wire() {
   document.querySelectorAll('.seg-btn[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
   $('#btn-refresh').addEventListener('click', () => { sessionStorage.clear(); refreshAll(); });
   $('#btn-edit-topics').addEventListener('click', openTopics);
-  document.querySelectorAll('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+  document.querySelectorAll('dialog:not(#dlg-welcome)').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
   window.addEventListener('hashchange', route);
   document.addEventListener('keydown', (e) => {
     if (e.target.closest('input, textarea, select, [contenteditable], dialog[open]') || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1057,6 +1167,13 @@ function wire() {
 }
 
 (async function main() {
+  try {
+    if (!isStandalone() && !sessionStorage.getItem('pnd.visit')) {
+      sessionStorage.setItem('pnd.visit', '1');
+      state.install = { ...state.install, visits: (state.install?.visits || 0) + 1 };
+      save();
+    }
+  } catch {}
   applyTheme();
   applyI18n();
   homeFeed = createFeed($('#home-feed'));
@@ -1074,6 +1191,7 @@ function wire() {
   booted = true;
   route();
   if (!state.city && gold) openWelcome();
+  else maybeAutoInstallSheet();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
