@@ -94,6 +94,8 @@ function nextData(html) {
 }
 
 async function growwGold() {
+  // Test hook: SIMULATE_GROWW_DOWN=1 node scripts/fetch-gold.mjs  → exercises the goodreturns backup.
+  if (process.env.SIMULATE_GROWW_DOWN) throw new Error('simulated outage');
   const slug = cities.find((c) => c.groww)?.groww || 'visakhapatnam';
   const pp = nextData(await fetchText(`https://groww.in/gold-rates/gold-rate-today-in-${slug}`, { timeout: 25000 }));
   const { physicalGoldRate: now = {}, daySummary = {} } = pp.goldRateData || {};
@@ -133,7 +135,7 @@ const isoFromLong = (s) => {
 };
 
 async function goodreturns(city) {
-  const t = cleanText(await fetchText(`https://www.goodreturns.in/gold-rates/${city.gr}.html`, { timeout: 25000, retries: 0 }));
+  const t = cleanText(await fetchText(`https://www.goodreturns.in/gold-rates/${city.gr}.html`, { timeout: 25000, retries: 1 }));
   const m = t.match(
     /stands at ₹\s?([\d,]+) per gram for 24 karat.*?₹\s?([\d,]+) per gram for 22 karat.*?₹\s?([\d,]+) per gram for 18 karat/
   );
@@ -230,13 +232,26 @@ if (!flag('--no-retail')) {
   if (ib.status === 'fulfilled') bench = ib.value;
   else warn('ibja:', ib.reason?.message);
 
-  const missing = cities.filter((c) => !cityRates[c.id] && c.gr);
-  if (missing.length) {
-    await pool(missing, 2, async (c) => {
-      try { cityRates[c.id] = await goodreturns(c); } catch (e) { warn(`goodreturns ${c.id}:`, e.message); }
+  // goodreturns.in backup: used for any city Groww didn't return, or returned
+  // with a stale date (older than yesterday). Whichever source is newer wins.
+  const yesterday = istDate(Date.now() - 864e5);
+  const backup = cities.filter((c) => c.gr && (!cityRates[c.id] || cityRates[c.id].date < yesterday));
+  if (backup.length) {
+    console.log(`goodreturns backup for: ${backup.map((c) => c.id).join(', ')}`);
+    await pool(backup, 2, async (c) => {
+      try {
+        const r = await goodreturns(c);
+        const cur = cityRates[c.id];
+        if (!cur || r.date >= cur.date) cityRates[c.id] = cur ? { ...r, days: { ...cur.days, ...r.days } } : r;
+      } catch (e) {
+        warn(`goodreturns ${c.id}:`, e.message);
+      }
     });
   }
 }
+const bySource = {};
+for (const [id, r] of Object.entries(cityRates)) (bySource[r.src] ||= []).push(id);
+for (const [src, ids] of Object.entries(bySource)) console.log(`city rates from ${src}: ${ids.join(', ')}`);
 
 // Premium of local retail (excl. GST) over international spot – lets the browser
 // estimate live retail prices between scheduled updates.

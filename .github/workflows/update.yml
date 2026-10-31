@@ -1,11 +1,18 @@
 name: Update news & gold, deploy to Pages
 
+# Minutes budget — private repo on GitHub Pro includes $18/month ≈ 3,000 Linux minutes
+# (public repos: unlimited). Each run is ONE job; partial minutes round up per job.
+# Default schedule (safe even if a run takes up to 2 min):
+#   • every 30 min, 05:37–23:07 IST → 36 runs/day
+#   • hourly overnight              →  6 runs/day   ≈ 43 runs/day ≈ 1,300–2,600 min/month
+# Faster news: if a run finishes in under 60 s (see the Actions tab), change '7,37'
+# below to '7,22,37,52' (every 15 min, ≈ 2,400 min/month). The Live button in the
+# app always fetches the newest headlines instantly, whatever the schedule.
 on:
   schedule:
-    # News + live gold snapshot every 15 min (GitHub may delay scheduled runs a few minutes).
-    - cron: '7,22,37,52 * * * *'
-    # Once a day (18:41 IST) also commit the gold history so it is kept forever.
-    - cron: '11 13 * * *'
+    - cron: '7,37 0-17 * * *'       # daytime India (UTC 00–17 = IST 05:30–23:30)
+    - cron: '7 18-23 * * *'         # overnight India, hourly
+    - cron: '41 13 * * *'           # 19:11 IST – also commit the day's gold history
   push:
     branches: [main]
   workflow_dispatch:
@@ -20,21 +27,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
+      # ubuntu-latest already ships Node 20+, so no setup-node step (saves time/minutes).
       - name: Fetch news + gold and build site
-        run: node scripts/build.mjs
+        run: node --version && node scripts/build.mjs
 
       - name: Commit daily gold history
-        if: github.event.schedule == '11 13 * * *' || github.event_name == 'workflow_dispatch'
+        if: github.event.schedule == '41 13 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -48,12 +55,5 @@ jobs:
         with:
           path: _site
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -21,8 +21,7 @@ Once installed, it opens full screen and supports pull-to-refresh. It also **wor
 
 ## One-time setup (about 5 minutes)
 
-1. **Make the repository public.** On a free GitHub account, Pages only works for public repos (see below), and public repos get unlimited free Actions minutes. The repo contains no secrets.
-   *Settings → General → Danger zone → Change visibility → Public.*
+1. **Keep the repo private or make it public.** On **GitHub Pro**, Pages works from private repos. The *site* is still reachable by anyone who has the URL; only Enterprise Cloud can restrict that. The repo contains no secrets.
 2. **Turn on Pages from Actions**: *Settings → Pages → Build and deployment → Source: **GitHub Actions***.
 3. **Merge this branch into `main`.** Scheduled workflows only run from the default branch.
 4. Run it once: *Actions → "Update news & gold, deploy to Pages" → Run workflow*.
@@ -32,20 +31,21 @@ Once installed, it opens full screen and supports pull-to-refresh. It also **wor
 | GitHub Pages fact | How the app handles it |
 |---|---|
 | **Static hosting only** (HTML/CSS/JS; no server code, no database) | All data is fetched ahead of time by a GitHub Actions job and published as small JSON files. The page is plain HTML/JS with no framework. |
-| **Free only for public repos** (private needs Pro/Team/Enterprise) | Make the repo public. |
-| **Custom Actions workflows are exempt from the 10-builds/hour limit** | The workflow deploys every ~15 min (4 per hour). |
-| **Scheduled workflows: at most every 5 min, may be delayed under load, default branch only, disabled after 60 days without activity (public repos)** | Runs every 15 min. A daily gold-history commit keeps the repo active, so the schedule never switches off. |
+| **Private repos need Pro/Team/Enterprise** (you have Pro ✓). The published site is public either way. | Works as-is from the private repo. |
+| **Actions minutes:** public repos are free. Private repos on Pro include **$18/month of usage, about 3,000 Linux minutes** at $0.006/min, and partial minutes round up per job. | Update and deploy run as **one job**. The default schedule is every **30 min** in the Indian daytime and hourly overnight: 43 runs/day, about **1,300 min/month** (≤ 2,600 even if a run takes 2 min). If the Actions tab shows runs under 60 s, switch to every 15 min by changing `7,37` to `7,22,37,52` in the workflow (about 2,400 min/month). Check usage under *Settings → Billing*. |
+| **Custom Actions workflows are exempt from the 10-builds/hour limit** | The workflow deploys at most 2–4 times an hour. |
+| **Scheduled workflows: at most every 5 min, may be delayed under load, default branch only; in public repos, disabled after 60 days without activity** | Runs every 30 min by day (15 if you choose). A daily gold-history commit keeps the repo active in any case. |
 | **Site ≤ 1 GB, deploy ≤ 10 min, ~100 GB/month bandwidth (soft)** | The site is about 2 MB; one build takes under a minute. |
 | **HTTPS on `*.github.io`**, `.webmanifest` served as `application/manifest+json` | Required for installing (service worker + manifest), and both work. |
 | **No custom HTTP headers; every file gets `Cache-Control: max-age=600`** | Data requests add a per-minute cache-buster. The service worker controls offline caching. Security policies are set with `<meta>` tags. |
 | **No server-side proxy** | Browsers can't read Google News directly (CORS). The Live button uses public CORS proxies, or your own free Cloudflare Worker (below). |
 
-Sources: [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits), [What is GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [Events that trigger workflows → schedule](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule), [GitHub plans and Pages availability](https://docs.github.com/en/get-started/learning-about-github/githubs-plans), [no custom headers (GitHub community)](https://github.com/orgs/community/discussions/60087). The `max-age=600` header and the manifest MIME type were checked directly on live `*.github.io` sites.
+Sources: [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits), [What is GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [Events that trigger workflows → schedule](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule), [GitHub plans and Pages availability](https://docs.github.com/en/get-started/learning-about-github/githubs-plans), [no custom headers (GitHub community)](https://github.com/orgs/community/discussions/60087). The `max-age=600` header and the manifest MIME type were checked directly on live `*.github.io` sites.
 
 ## How it works
 
 ```
-GitHub Actions (every ~15 min)                                GitHub Pages
+GitHub Actions (every 30 min by day, hourly at night)                                GitHub Pages
  ├─ scripts/fetch-news.mjs → data/news/<topic>.<en|te>.json ─┐
  ├─ scripts/fetch-gold.mjs → data/gold.json                  ├─► index.html + assets/*.js  (installable PWA)
  │                         → data/gold-history.json (committed daily)  │   ├─ sw.js: offline cache
@@ -55,7 +55,7 @@ GitHub Actions (every ~15 min)                                GitHub Pages
 
 - The code has no dependencies: Node 20+ scripts and plain JS. There is no `npm install` and no bundler.
 - News data is rebuilt on each run and is **not** committed. Only `data/gold-history.json` is committed, once a day, so the gold chart keeps growing.
-- The service worker is stamped with a hash of the app files. Phones download a new app version only when the app itself changes, not on every 15-minute data refresh.
+- The service worker is stamped with a hash of the app files. Phones download a new app version only when the app itself changes, not on every scheduled data refresh.
 - Every source is optional. If one fails, the others still work, and city gold rates fall back to a second site.
 
 ### Run locally
@@ -95,7 +95,7 @@ The free plan allows 100,000 requests per day.
 | **ibjarates.com** (India Bullion & Jewellers Association) | Official national benchmark: **999 / 995 / 916 / 750 / 585** gold, silver 999, platinum; morning and evening sessions, plus ~4 months of history | The reference rate used across the Indian bullion trade. |
 | **api.gold-api.com** | Real-time international XAU / XAG in USD and INR | CORS-enabled, so the app also polls it live. |
 | **fawazahmed0/exchange-api** (jsDelivr) | Spot fallback, plus daily spot history back to 2024 | |
-| goodreturns.in | Fallback city rates | Currently blocks automated requests at times; only used if Groww fails. |
+| **goodreturns.in** | **Backup city rates** (24K/22K/18K plus a 10-day table) | Used automatically when Groww fails, misses a city, or returns a stale date. It sometimes throttles a machine that fetches repeatedly, so it isn't the primary source. Test the fallback with `SIMULATE_GROWW_DOWN=1 node scripts/fetch-gold.mjs`. |
 
 **All karats.** Cities publish 24K, 22K and 18K. **23K, 20K, 14K and 9K** (the other BIS hallmark grades) are calculated as 24K × karat/24, which is how jewellers' rate cards derive them. They are marked *calc.* in the app. All rates exclude GST (3%), TCS and making charges; use the calculator in the app for an estimated bill.
 

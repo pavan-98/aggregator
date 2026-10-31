@@ -691,7 +691,7 @@ function renderGoldPage() {
 
   const sources = h('div', { class: 'card foot-note' },
     `${t('sources')}: `,
-    ...[['groww.in', 'https://groww.in/gold-rates'], ['ibjarates.com', 'https://ibjarates.com'], ['gold-api.com', 'https://gold-api.com'], ['exchange-api', 'https://github.com/fawazahmed0/exchange-api']]
+    ...[[city.src || 'groww.in', `https://${city.src === 'goodreturns.in' ? 'www.goodreturns.in/gold-rates/' : 'groww.in/gold-rates'}`], ['ibjarates.com', 'https://ibjarates.com'], ['gold-api.com', 'https://gold-api.com'], ['exchange-api', 'https://github.com/fawazahmed0/exchange-api']]
       .flatMap(([n, u], i) => [i ? ', ' : '', h('a', { href: u, target: '_blank', rel: 'noopener', text: n })]),
     ` · ${t('updated')} ${rel(gold.updated)}`);
 

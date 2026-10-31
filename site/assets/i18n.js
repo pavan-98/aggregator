@@ -62,7 +62,7 @@ export const STRINGS = {
     installed: 'Installed as an app ✓',
     notNow: 'Not now',
     about: 'About',
-    aboutText: 'No ads, no tracking. Headlines link to the original publishers. Data refreshes about every 15 minutes.',
+    aboutText: 'No ads, no tracking. Headlines link to the original publishers. News refreshes about every 30 minutes; tap Live for the latest instantly.',
     pullRefresh: 'Release to refresh',
     // gold
     goldRate: 'Gold rate',
@@ -178,7 +178,7 @@ export const STRINGS = {
     installed: 'యాప్‌గా ఇన్‌స్టాల్ అయింది ✓',
     notNow: 'ఇప్పుడు వద్దు',
     about: 'గురించి',
-    aboutText: 'ప్రకటనలు లేవు, ట్రాకింగ్ లేదు. శీర్షికలు అసలు ప్రచురణకర్తలకు లింక్ అవుతాయి. డేటా సుమారు ప్రతి 15 నిమిషాలకు మారుతుంది.',
+    aboutText: 'ప్రకటనలు లేవు, ట్రాకింగ్ లేదు. శీర్షికలు అసలు ప్రచురణకర్తలకు లింక్ అవుతాయి. వార్తలు సుమారు ప్రతి 30 నిమిషాలకు మారుతాయి; తాజావి వెంటనే కావాలంటే లైవ్ నొక్కండి.',
     pullRefresh: 'రిఫ్రెష్ కోసం వదలండి',
     goldRate: 'బంగారం ధర',
     goldToday: 'ఈరోజు బంగారం',
