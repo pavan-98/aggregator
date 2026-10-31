@@ -1,101 +1,125 @@
 # My News · నా వార్తలు
 
-A personal, ad-free news dashboard in **English and Telugu**, with a **gold-rate tracker**.
-It runs entirely on free services: GitHub Actions fetches the data and GitHub Pages hosts the site.
-You need no API keys, no server and no paid plan.
+A personal, ad-free **news + gold-rate app** for phones. It works in **English and Telugu**, and **Visakhapatnam** is its home city.
+It is a free static site on GitHub Pages and installs on iPhone and Android like a normal app. You need no API keys, no server and no paid plan.
 
-- **Topics**: Top stories, Telangana & AP, Hyderabad, India, World, Business, Gold & markets, Tech, Cricket, Sports, Cinema, Science, Health. You can switch between them with the tabs or the ← → keys. You can hide or reorder them, and add your own topics from keywords (for example `ISRO OR ఇస్రో`).
-- **Languages**: the interface can be English or Telugu. The news can follow the interface language, or be English only, Telugu only, or **both mixed**.
-- **News freshness**: GitHub Actions rebuilds every topic about every 15 minutes. The **Live** button fetches the newest headlines straight from Google News in your browser, right now.
-- **Gold**: 24K / 22K / 18K rates per gram for Hyderabad, Vijayawada, Visakhapatnam, Chennai, Bengaluru, Mumbai and Delhi, with the change since yesterday. It has a 30-day, 90-day and 1-year chart (or table), the international spot price (refreshed every 60 s while the page is open), silver, USD/INR, and a live retail estimate.
-- **Other features**: hide a source with ⊘, filter within a topic, light and dark themes, installable on your phone (PWA), and export/import of your settings to move them between devices.
+| Tab | What's there |
+|---|---|
+| **Vizag** (home) | Today's Vizag gold rates (24K / 22K / 18K with change since yesterday), the silver rate, and Visakhapatnam news in English and Telugu |
+| **News** | 14 topics: Visakhapatnam, Top stories, Telangana & AP, Hyderabad, India, World, Business, Gold & markets, Tech, Cricket, Sports, Cinema, Science, Health. Swipe left/right to switch topics. Hide or reorder topics, and add your own from keywords. |
+| **Gold** | Rates for **every karat in Vizag** (24K, 23K, 22K, 20K, 18K, 14K, 9K) per gram and per 10 g. Also: 30-day, 90-day and 1-year trend, a jewellery bill calculator (making % + 3% GST), Vizag silver, the official **IBJA** benchmark (999/995/916/750/585 and platinum), live international spot price, and 13 cities to compare. |
+| **Settings** | Install button, my city, app language, news language (English, Telugu or both), theme, hidden sources, backup/restore |
 
-## Setup (one time, about 5 minutes)
+## Install on your phone
 
-1. **Make the repository public.** GitHub Pages is only free for public repos. Public repos also get unlimited free Actions minutes; a private repo would run out of its 2,000 free minutes with the 15-minute schedule. The repo contains no secrets.
+Open the site (`https://pavan-98.github.io/aggregator/`) once, then:
+
+- **Android (Chrome, Edge, Samsung Internet):** tap the **Install app** banner. You can also use the ⋮ menu → *Install app* / *Add to Home screen*. It installs as a real app with its own icon, a splash screen, and long-press shortcuts to *Gold* and *News*.
+- **iPhone / iPad:** open the link in **Safari** → tap **Share** → **Add to Home Screen**. (iOS only allows installing from Safari; the app shows these steps when needed.)
+
+Once installed, it opens full screen and supports pull-to-refresh. It also **works offline**, showing the last news and rates it downloaded.
+
+## One-time setup (about 5 minutes)
+
+1. **Make the repository public.** On a free GitHub account, Pages only works for public repos (see below), and public repos get unlimited free Actions minutes. The repo contains no secrets.
    *Settings → General → Danger zone → Change visibility → Public.*
 2. **Turn on Pages from Actions**: *Settings → Pages → Build and deployment → Source: **GitHub Actions***.
 3. **Merge this branch into `main`.** Scheduled workflows only run from the default branch.
 4. Run it once: *Actions → "Update news & gold, deploy to Pages" → Run workflow*.
-5. Open **https://pavan-98.github.io/aggregator/**. On your phone, use "Add to Home Screen" to install it like an app.
 
-GitHub turns off scheduled workflows in repos with no activity for 60 days. The daily gold-history commit counts as activity, so the schedule stays on.
+## Why this stack: what GitHub Pages supports (checked Oct 2026)
 
-### Optional: your own CORS proxy (recommended for the Live button)
+| GitHub Pages fact | How the app handles it |
+|---|---|
+| **Static hosting only** (HTML/CSS/JS; no server code, no database) | All data is fetched ahead of time by a GitHub Actions job and published as small JSON files. The page is plain HTML/JS with no framework. |
+| **Free only for public repos** (private needs Pro/Team/Enterprise) | Make the repo public. |
+| **Custom Actions workflows are exempt from the 10-builds/hour limit** | The workflow deploys every ~15 min (4 per hour). |
+| **Scheduled workflows: at most every 5 min, may be delayed under load, default branch only, disabled after 60 days without activity (public repos)** | Runs every 15 min. A daily gold-history commit keeps the repo active, so the schedule never switches off. |
+| **Site ≤ 1 GB, deploy ≤ 10 min, ~100 GB/month bandwidth (soft)** | The site is about 2 MB; one build takes under a minute. |
+| **HTTPS on `*.github.io`**, `.webmanifest` served as `application/manifest+json` | Required for installing (service worker + manifest), and both work. |
+| **No custom HTTP headers; every file gets `Cache-Control: max-age=600`** | Data requests add a per-minute cache-buster. The service worker controls offline caching. Security policies are set with `<meta>` tags. |
+| **No server-side proxy** | Browsers can't read Google News directly (CORS). The Live button uses public CORS proxies, or your own free Cloudflare Worker (below). |
 
-Browsers block a page from reading Google News directly (CORS). The Live button and custom topics therefore go through a proxy. By default it races several free public proxies (rss2json, allorigins, codetabs) and uses the first that answers. Public proxies are flaky, and rss2json only returns 10 items per feed. For a fast and reliable Live button:
-
-1. Create a free Cloudflare account and open *Workers & Pages → Create → Worker*.
-2. Paste in [`worker/cors-proxy.js`](worker/cors-proxy.js) and deploy. It only allows Google News and the gold APIs, so it is not an open proxy.
-3. In the dashboard, open *Settings → Own CORS proxy* and paste the worker URL.
-
-The free plan allows 100,000 requests per day, far more than you will use.
+Sources: [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits), [What is GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [Events that trigger workflows → schedule](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule), [GitHub plans and Pages availability](https://docs.github.com/en/get-started/learning-about-github/githubs-plans), [no custom headers (GitHub community)](https://github.com/orgs/community/discussions/60087). The `max-age=600` header and the manifest MIME type were checked directly on live `*.github.io` sites.
 
 ## How it works
 
 ```
-GitHub Actions (cron, every ~15 min)                      GitHub Pages (static)
- ├─ scripts/fetch-news.mjs  → _site/data/news/<topic>.<en|te>.json ─┐
- ├─ scripts/fetch-gold.mjs  → _site/data/gold.json                  ├─► index.html + assets/app.js
- │                          → data/gold-history.json (committed daily)┘      │
- └─ deploy-pages                                                              ├─ Live: Google News RSS via CORS proxy
-                                                                              └─ Live spot: api.gold-api.com (every 60 s)
+GitHub Actions (every ~15 min)                                GitHub Pages
+ ├─ scripts/fetch-news.mjs → data/news/<topic>.<en|te>.json ─┐
+ ├─ scripts/fetch-gold.mjs → data/gold.json                  ├─► index.html + assets/*.js  (installable PWA)
+ │                         → data/gold-history.json (committed daily)  │   ├─ sw.js: offline cache
+ └─ actions/deploy-pages                                     ┘   ├─ Live news: Google News via CORS proxy
+                                                                     └─ Live spot: api.gold-api.com every 60 s (Gold tab)
 ```
 
-- The code has no dependencies: Node 20+ scripts and plain HTML, CSS and JS. There is no npm install and no bundler.
-- News data is rebuilt on each run and is **not** committed, which keeps the git history clean. Only `data/gold-history.json` is committed, once a day, so the gold chart keeps growing.
-- Every source is optional. If a feed or a gold site fails, the rest still works: retail gold falls back to a second site, and spot gold falls back to a second API.
+- The code has no dependencies: Node 20+ scripts and plain JS. There is no `npm install` and no bundler.
+- News data is rebuilt on each run and is **not** committed. Only `data/gold-history.json` is committed, once a day, so the gold chart keeps growing.
+- The service worker is stamped with a hash of the app files. Phones download a new app version only when the app itself changes, not on every 15-minute data refresh.
+- Every source is optional. If one fails, the others still work, and city gold rates fall back to a second site.
 
 ### Run locally
 
 ```bash
-node scripts/build.mjs                    # fetch everything into _site/
-python3 -m http.server 8080 -d _site      # open http://localhost:8080
-node scripts/fetch-gold.mjs --backfill 365  # (re)fill a year of spot-price history
+node scripts/build.mjs                       # fetch everything into _site/
+python3 -m http.server 8080 -d _site         # open http://localhost:8080
+node scripts/fetch-gold.mjs --backfill 365   # (re)fill a year of spot-price history
+node scripts/make-icons.cjs                  # regenerate PNG app icons (needs Playwright)
 ```
 
 ### Customize
 
-- **Built-in topics and feeds**: edit [`config/topics.json`](config/topics.json). A topic can have:
-  - a Google News spec per language: `{ "top": true }`, `{ "section": "WORLD" }` or `{ "q": "search words", "when": "2d" }`
-  - extra publisher RSS feeds per language.
-- **Gold cities**: edit [`config/gold.json`](config/gold.json). Use the city slugs from goodreturns.in and policybazaar.com.
-- **Custom topics** added in the UI are stored in your browser and fetched live. To have one pre-built every 15 minutes like the built-in topics, add it to `topics.json`.
+- **Topics and feeds**: edit [`config/topics.json`](config/topics.json).
+  - Google News spec per language: `{ "top": true }`, `{ "section": "WORLD" }` or `{ "q": "words", "when": "2d" }`.
+  - Publisher RSS feeds can take `"match"`, a regex that keeps only matching stories. This is how statewide Telugu feeds are filtered down to Visakhapatnam stories. `"max"` sets how many items to read from a feed.
+  - A topic with `"city"` becomes the Home feed for that city.
+- **Gold cities**: edit [`config/gold.json`](config/gold.json). It accepts any of the ~300 Groww city slugs. The first city is the default.
+- **Custom topics** added in the app are stored on the phone and fetched live.
 
-## Data sources: what was tested and why these were chosen
+### Optional: your own CORS proxy (faster, more reliable Live button)
 
-Each source below was tested on 31 Oct 2026. They are all free and need no account.
+1. Create a free Cloudflare account and open *Workers & Pages → Create → Worker*.
+2. Paste in [`worker/cors-proxy.js`](worker/cors-proxy.js) and deploy. It only allows Google News and the gold APIs.
+3. Paste the worker URL into *Settings → Own CORS proxy*.
+
+The free plan allows 100,000 requests per day.
+
+## Data sources (all free, no keys, tested Oct 2026)
+
+### Gold & silver
+
+| Source | Used for | Notes |
+|---|---|---|
+| **groww.in** gold page | **Primary city rates**: 24K / 22K / 18K for ~300 Indian cities, including Visakhapatnam, plus 10 days of history | One request returns every city, read from the page's embedded JSON. |
+| **groww.in** silver page | Silver per gram, per city | |
+| **ibjarates.com** (India Bullion & Jewellers Association) | Official national benchmark: **999 / 995 / 916 / 750 / 585** gold, silver 999, platinum; morning and evening sessions, plus ~4 months of history | The reference rate used across the Indian bullion trade. |
+| **api.gold-api.com** | Real-time international XAU / XAG in USD and INR | CORS-enabled, so the app also polls it live. |
+| **fawazahmed0/exchange-api** (jsDelivr) | Spot fallback, plus daily spot history back to 2024 | |
+| goodreturns.in | Fallback city rates | Currently blocks automated requests at times; only used if Groww fails. |
+
+**All karats.** Cities publish 24K, 22K and 18K. **23K, 20K, 14K and 9K** (the other BIS hallmark grades) are calculated as 24K × karat/24, which is how jewellers' rate cards derive them. They are marked *calc.* in the app. All rates exclude GST (3%), TCS and making charges; use the calculator in the app for an estimated bill.
+
+**Estimated chart points.** Retail history only goes back as far as the sources publish it. For older days, the chart estimates from the international price × the local premium on the nearest real day, and draws those points dashed.
 
 ### News
 
-| Source | Used for | Notes |
-|---|---|---|
-| **Google News RSS** `news.google.com/rss` | Backbone of every topic, in English (`hl=en-IN`) and Telugu (`hl=te&ceid=IN:te`) | Headlines, sections (WORLD, NATION, BUSINESS, TECHNOLOGY, ENTERTAINMENT, SPORTS, SCIENCE, HEALTH) and full search with `when:1d`. Covers thousands of publishers, including Eenadu, Andhra Jyothy, Sakshi and HMTV. No key and no hard rate limit. No CORS, so the browser reaches it through a proxy. |
-| TV9 Telugu, NTV Telugu, V6 Velugu, 10TV, Oneindia Telugu, Asianet Telugu | Telugu States topic | Publisher RSS, includes images. |
-| Telangana Today, Deccan Chronicle | Telangana & AP (English) | Publisher RSS. |
-| NDTV (feedburner) | Top stories (English) | Publisher RSS with images and summaries. |
-| rss2json.com, allorigins.win, codetabs.com | Browser-side Live fetch | Free public CORS proxies; flaky, so they are raced in parallel. |
+| Source | Used for |
+|---|---|
+| **Google News RSS**, English (`hl=en-IN`) and Telugu (`hl=te&ceid=IN:te`) | The backbone of every topic. For Visakhapatnam it searches *Visakhapatnam OR Vizag* and *విశాఖపట్నం OR విశాఖ OR వైజాగ్*, which brings in Eenadu, Sakshi, Andhra Jyothy, The Hindu, TOI, Hans India, Yo Vizag, Hello Vizag and more. |
+| Andhra Jyothy, TV9 Telugu (AP), NTV Telugu (AP), Asianet Telugu (AP) | Vizag topic, filtered to Visakhapatnam stories |
+| Vizag Vision | Vizag topic (local English) |
+| TV9 Telugu, NTV, V6 Velugu, 10TV, Oneindia Telugu, Asianet Telugu | Telangana & AP |
+| Telangana Today, Deccan Chronicle, NDTV | English topics |
+| rss2json.com, allorigins.win, codetabs.com | In-browser Live fetch (public CORS proxies, raced in parallel) |
 
-Also evaluated and **not used**:
+Evaluated and **not used**:
 
-- **NewsAPI.org**: its free plan is for development only and blocks browser requests from real domains.
-- **GNews, NewsData.io, Mediastack, Currents, TheNewsAPI, World News API**: each needs an API key and has a small daily or monthly quota. That is not enough for 13 topics × 2 languages every 15 minutes, and a key in a public static site would leak.
-- **GDELT DOC API**: free and multilingual, but limited to one request every 5 seconds and has no CORS.
-- **BBC Telugu, Sakshi, The Hindu, BBC World, Mint**: their RSS feeds return 403 to automated fetchers. Their stories still arrive through Google News.
+- **NewsAPI.org**: browser use is blocked on the free plan.
+- **GNews, NewsData.io, Mediastack, Currents, TheNewsAPI**: each needs a key and has a tiny quota, and a key would leak in a public site.
+- **GDELT**: limited to one request every 5 seconds, with no CORS.
+- **goldapi.io, metals.dev, metalpriceapi**: each needs a key and allows about 100 requests a month.
+- **The Hindu, BBC Telugu, Sakshi and Mint direct RSS feeds**: they block automated fetchers. Their stories still arrive through Google News.
 
-### Gold and silver
+## Etiquette
 
-| Source | Used for | Notes |
-|---|---|---|
-| **api.gold-api.com** | Real-time spot XAU/XAG in USD and INR | No key, CORS-enabled, so the browser also polls it live. |
-| **fawazahmed0/exchange-api** (jsDelivr + Cloudflare mirror) | Spot fallback and **daily history** back to 2024 | No key and no limits. Date-tagged URLs make backfill possible. |
-| **goodreturns.in** city pages | Retail 24K/22K/18K per gram, plus a 10-day table | Indicative retail rates, without GST, TCS or making charges. |
-| **policybazaar.com** city pages | Retail fallback | 24K/22K. |
-
-Also evaluated and **not used**: goldapi.io, metals.dev, metalpriceapi.com and Metals-API. They need keys and have about 100 requests per month on their free plans. frankfurter.app has no XAU.
-
-**About the "estimated" values.** Indian retail prices sit well above the international spot price, because of import duty and other charges. The premium is currently about 17%. The app measures this premium each day from the real city rates. For days with no published city rate, the chart multiplies spot by the premium from the nearest real day and draws a dashed line. The "Live estimate now" figure uses the same method with the current spot price.
-
-## Legal / etiquette
-
-This is a personal reader. Headlines link to the original publishers. Nothing is republished beyond the title, a short snippet and a thumbnail, as RSS readers do. The fetcher identifies itself honestly in its User-Agent. Gold figures are indicative only; confirm with your jeweller before buying.
+This is a personal reader. The fetchers identify themselves honestly in their User-Agent, run at most every 15 minutes, and never try to get around a site that blocks them. Headlines link to the original publishers. Gold figures are indicative; confirm with your jeweller before buying.

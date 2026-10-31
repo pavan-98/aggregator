@@ -3,19 +3,23 @@
 //
 //   node scripts/fetch-gold.mjs [outDir] [--backfill N] [--no-retail]
 //
-// Writes  <outDir>/gold.json          live snapshot (spot + city retail rates)
+// Writes  <outDir>/gold.json          live snapshot (spot, city retail, IBJA benchmark, silver)
 //         <outDir>/gold-history.json  daily history (also kept at data/gold-history.json)
 //
-// Sources (all free, no API key):
-//   spot:   api.gold-api.com (real-time XAU/XAG, CORS-enabled)
-//           fallback + history: fawazahmed0/exchange-api on jsDelivr (daily, back to 2024)
-//   retail: goodreturns.in city pages (22K/24K/18K per gram, + 10-day table)
-//           fallback: policybazaar.com city pages
+// Sources (all free, no API key, fetched with an honest User-Agent):
+//   city retail : groww.in gold page – one request returns 24K/22K/18K for ~300
+//                 Indian cities + the last 10 days (embedded Next.js JSON)
+//                 fallback: goodreturns.in city pages
+//   city silver : groww.in silver page – per-gram silver for ~300 cities
+//   benchmark   : ibjarates.com – India Bullion & Jewellers Association rates for
+//                 999/995/916/750/585 gold, silver 999, platinum (+ ~4 months history)
+//   spot        : api.gold-api.com (real-time XAU/XAG, CORS) ;
+//                 fallback + history: fawazahmed0/exchange-api on jsDelivr
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchJSON, fetchText, pool, cleanText } from './lib/feed.mjs';
+import { fetchJSON, fetchText, pool, cleanText, decodeEntities } from './lib/feed.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -31,8 +35,14 @@ const istDate = (t = Date.now()) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(t);
 const num = (s) => Number(String(s).replace(/[^\d.]/g, ''));
 const r2 = (n) => Math.round(n * 100) / 100;
+const dmyToIso = (s) => {
+  const m = String(s).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+};
+const warn = (...a) => console.warn('WARN', ...a);
+const plausibleG24 = (v) => v > 1000 && v < 100000;
 
-// ---------- spot ----------
+// ---------------------------------------------------------------- spot
 async function spotFromGoldApi() {
   const base = 'https://api.gold-api.com/price';
   const [xauUsd, xauInr, xagUsd, xagInr] = await Promise.all(
@@ -76,23 +86,59 @@ async function spotFromCurrencyApi(date = 'latest') {
   };
 }
 
-// ---------- retail (per city) ----------
-const pageText = (html) => cleanText(html);
+// ---------------------------------------------------------------- groww (city retail, all cities in one request)
+function nextData(html) {
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) throw new Error('no __NEXT_DATA__');
+  return JSON.parse(m[1]).props.pageProps;
+}
 
+async function growwGold() {
+  const slug = cities.find((c) => c.groww)?.groww || 'visakhapatnam';
+  const pp = nextData(await fetchText(`https://groww.in/gold-rates/gold-rate-today-in-${slug}`, { timeout: 25000 }));
+  const { physicalGoldRate: now = {}, daySummary = {} } = pp.goldRateData || {};
+  const pick = (p) => ({ k24: p.TWENTY_FOUR, k22: p.TWENTY_TWO, k18: p.EIGHTEEN });
+  const out = {};
+  for (const c of cities) {
+    const cur = now[c.groww];
+    if (!cur?.price || !plausibleG24(cur.price.TWENTY_FOUR)) continue;
+    const days = {};
+    for (const [d, v] of Object.entries(daySummary[c.groww] || {})) if (v?.price?.TWENTY_FOUR) days[d] = pick(v.price);
+    const dates = Object.keys(days).sort();
+    const date = cur.date || dates.at(-1) || istDate();
+    const prevDate = dates.filter((d) => d < date).at(-1);
+    out[c.id] = { ...pick(cur.price), prev: prevDate ? days[prevDate] : null, date, days, src: 'groww.in' };
+  }
+  return out;
+}
+
+async function growwSilver() {
+  const slug = cities.find((c) => c.groww)?.groww || 'visakhapatnam';
+  const pp = nextData(await fetchText(`https://groww.in/silver-rates/silver-rate-today-in-${slug}`, { timeout: 25000 }));
+  const bySlug = new Map((pp.cityRates || []).map((r) => [r.slug, r]));
+  const out = {};
+  for (const c of cities) {
+    const r = bySlug.get(c.groww);
+    if (r?.todayPrice > 0) out[c.id] = { g: r.todayPrice, prev: r.yesterdayPrice || null };
+  }
+  const india = pp.silverItem?.spotPrice > 0 ? { kg: pp.silverItem.spotPrice, prevKg: pp.silverItem.lastDayClosePrice || null } : null;
+  return { cities: out, india, date: pp.snapshotDate || null };
+}
+
+// ---------------------------------------------------------------- goodreturns (per-city fallback)
 const MONTHS = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
 const isoFromLong = (s) => {
   const m = s.match(/([A-Z][a-z]{2})\w* (\d{1,2}), (\d{4})/);
   return m ? `${m[3]}-${String(MONTHS[m[1]]).padStart(2, '0')}-${m[2].padStart(2, '0')}` : null;
 };
 
-async function retailGoodreturns(city) {
-  const t = pageText(await fetchText(`https://www.goodreturns.in/gold-rates/${city.gr}.html`, { timeout: 25000 }));
+async function goodreturns(city) {
+  const t = cleanText(await fetchText(`https://www.goodreturns.in/gold-rates/${city.gr}.html`, { timeout: 25000, retries: 0 }));
   const m = t.match(
     /stands at ₹\s?([\d,]+) per gram for 24 karat.*?₹\s?([\d,]+) per gram for 22 karat.*?₹\s?([\d,]+) per gram for 18 karat/
   );
   if (!m) throw new Error('goodreturns: pattern not found');
   const cur = { k24: num(m[1]), k22: num(m[2]), k18: num(m[3]) };
-  // "Gold Rate in X for Last 10 Days (1 gram) Date 24K 22K Oct 31, 2026 ₹13,888 (-338) ₹12,730 (-310) ..."
   const days = {};
   const tbl = t.slice(t.indexOf('Last 10 Days (1 gram)'));
   for (const r of tbl.matchAll(/([A-Z][a-z]{2} \d{1,2}, \d{4}) ₹\s?([\d,]+) \([^)]*\) ₹\s?([\d,]+)/g)) {
@@ -101,90 +147,116 @@ async function retailGoodreturns(city) {
     if (Object.keys(days).length >= 10) break;
   }
   const dates = Object.keys(days).sort().reverse();
-  let prev = dates[1] ? { ...days[dates[1]] } : null;
-  const ch18 = t.match(/18K Gold\s*\/g\s*₹\s?[\d,]+\s*([+-])\s*([\d,]+)/);
-  if (prev && ch18) prev.k18 = cur.k18 - (ch18[1] === '-' ? -1 : 1) * num(ch18[2]);
+  const prev = dates[1] ? { ...days[dates[1]] } : null;
   return { ...cur, prev, date: dates[0] || istDate(), days, src: 'goodreturns.in' };
 }
 
-async function retailPolicybazaar(city) {
-  const t = pageText(await fetchText(`https://www.policybazaar.com/gold-rate-${city.pb}/`, { timeout: 25000 }));
-  const rows = [...t.matchAll(/1 Gram ₹\s?([\d,]+) ₹\s?([\d,]+)/g)];
-  if (rows.length < 2) throw new Error('policybazaar: pattern not found');
-  const [k24, k24y] = [num(rows[0][1]), num(rows[0][2])];
-  const [k22, k22y] = [num(rows[1][1]), num(rows[1][2])];
-  if (!(k24 > k22 && k22 > 0)) throw new Error('policybazaar: implausible values');
-  return {
-    k24, k22, k18: Math.round(k24 * 0.75), k18est: true,
-    prev: { k24: k24y, k22: k22y, k18: Math.round(k24y * 0.75) },
-    date: istDate(), days: {}, src: 'policybazaar.com',
-  };
-}
+// ---------------------------------------------------------------- IBJA benchmark (all purities)
+async function ibja() {
+  const html = await fetchText('https://ibjarates.com/', { timeout: 25000 });
+  const rate = (p) => num(html.match(new RegExp(`id="GoldRatesCompare${p}">\\s*([\\d,.]+)`))?.[1] || 0);
+  const rates = { 999: rate(999), 995: rate(995), 916: rate(916), 750: rate(750), 585: rate(585) };
+  if (!plausibleG24(rates[999])) throw new Error('ibja: no 999 rate');
 
-async function retail(city) {
-  const errors = [];
-  for (const fn of [retailGoodreturns, retailPolicybazaar]) {
-    try {
-      const r = await fn(city);
-      // sanity: per-gram 24K rate should be within a broad plausible band
-      if (r.k24 < 1000 || r.k24 > 100000) throw new Error(`implausible 24K ${r.k24}`);
-      return r;
-    } catch (e) {
-      errors.push(e.message);
+  // Session tables: rows of  date | 999 | 995 | 916 | 750 | 585 | silver 999 (kg) | platinum 999  (gold per 10 g)
+  const sessions = {};
+  for (const tab of ['am', 'pm']) {
+    const start = html.indexOf(`id="tab-${tab}"`);
+    if (start < 0) continue;
+    const seg = html.slice(start, html.indexOf('</table>', start));
+    const row = seg.match(/<strong>(\d{2}\/\d{2}\/\d{4})<\/strong>([\s\S]*?)<\/tr>/);
+    if (!row) continue;
+    const vals = [...row[2].matchAll(/>\s*([\d,.]+)\s*</g)].map((m) => num(m[1]));
+    if (vals.length >= 7) {
+      sessions[tab] = {
+        date: dmyToIso(row[1]),
+        g: { 999: vals[0] / 10, 995: vals[1] / 10, 916: vals[2] / 10, 750: vals[3] / 10, 585: vals[4] / 10 },
+        silverKg: vals[5],
+        platinumG: vals[6] / 10,
+      };
     }
   }
-  console.warn(`WARN retail ${city.id}: ${errors.join(' | ')}`);
-  return null;
+  // ~4 months of daily 999/916 (per 10 g) and silver (per kg) used by IBJA's own charts
+  const series = (id) => {
+    const m = html.match(new RegExp(`id="${id}" value="([^"]*)"`));
+    if (!m) return null;
+    try { return JSON.parse(decodeEntities(m[1])); } catch { return null; }
+  };
+  const hist = {};
+  const g = series('HdnGold');
+  g?.labels?.forEach((l, i) => {
+    const d = dmyToIso(l);
+    if (d && g.purity999?.[i]) (hist[d] ||= {}).g999 = g.purity999[i] / 10;
+  });
+  const s = series('HdnSilver');
+  s?.labels?.forEach((l, i) => {
+    const d = dmyToIso(l);
+    if (d && s.silverRate?.[i]) (hist[d] ||= {}).agKg = s.silverRate[i];
+  });
+  const latest = sessions.pm && sessions.am ? (sessions.pm.date >= sessions.am.date ? sessions.pm : sessions.am) : sessions.pm || sessions.am;
+  return { rates, silverKg: latest?.silverKg || null, platinumG: latest?.platinumG || null, sessions, hist, src: 'ibjarates.com' };
 }
 
-// ---------- main ----------
+// ---------------------------------------------------------------- main
 let history = { days: {} };
 try { history = JSON.parse(await readFile(historyPath, 'utf8')); } catch {}
 history.days ||= {};
+const upsert = (d, patch) => {
+  const row = (history.days[d] ||= {});
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) row[k] = { ...(row[k] || {}), ...v };
+    else row[k] = v;
+  }
+};
 
 let spot;
 try {
   spot = await spotFromGoldApi();
 } catch (e) {
-  console.warn('WARN gold-api failed, falling back:', e.message);
+  warn('gold-api failed, falling back:', e.message);
   spot = await spotFromCurrencyApi('latest');
 }
 spot.inrG24 = r2(spot.inrOz / OZ);
 
-const cityRates = {};
+let cityRates = {};
+let silver = { cities: {}, india: null };
+let bench = null;
 if (!flag('--no-retail')) {
-  await pool(cities, 3, async (c) => {
-    const r = await retail(c);
-    if (r) cityRates[c.id] = r;
-  });
+  const [gr, sv, ib] = await Promise.allSettled([growwGold(), growwSilver(), ibja()]);
+  if (gr.status === 'fulfilled') cityRates = gr.value;
+  else warn('groww gold:', gr.reason?.message);
+  if (sv.status === 'fulfilled') silver = sv.value;
+  else warn('groww silver:', sv.reason?.message);
+  if (ib.status === 'fulfilled') bench = ib.value;
+  else warn('ibja:', ib.reason?.message);
+
+  const missing = cities.filter((c) => !cityRates[c.id] && c.gr);
+  if (missing.length) {
+    await pool(missing, 2, async (c) => {
+      try { cityRates[c.id] = await goodreturns(c); } catch (e) { warn(`goodreturns ${c.id}:`, e.message); }
+    });
+  }
 }
 
-// premium of local retail (excl. GST) over international spot – used by the
-// browser to estimate live retail prices between scheduled updates.
+// Premium of local retail (excl. GST) over international spot – lets the browser
+// estimate live retail prices between scheduled updates.
 const prem = Object.values(cityRates).map((r) => r.k24 / spot.inrG24).filter((p) => p > 0.9 && p < 1.5).sort();
-const premium = prem.length ? r2(prem[Math.floor(prem.length / 2)] * 1e4) / 1e4 : null;
+const premium = prem.length ? Math.round(prem[Math.floor(prem.length / 2)] * 1e4) / 1e4 : null;
 
-// ---- history: today's row + whatever the 10-day tables give us ----
+// ---- history ----
 const today = istDate();
-const upsert = (d, patch) => {
-  const row = (history.days[d] ||= {});
-  for (const [k, v] of Object.entries(patch)) {
-    if (k === 'c') row.c = { ...(row.c || {}), ...v };
-    else row[k] = v;
-  }
-};
 upsert(today, { usdOz: spot.usdOz, inrG: spot.inrG24, usdInr: spot.usdInr, agG: spot.agInrG });
 for (const [id, r] of Object.entries(cityRates)) {
-  // The 10-day table holds each day's final published rate: let it correct
-  // earlier snapshots (keeping an 18K value only if 24K is unchanged).
-  for (const [d, v] of Object.entries(r.days)) {
-    const ex = history.days[d]?.c?.[id];
-    upsert(d, { c: { [id]: ex && ex[0] === v.k24 && ex[2] ? [v.k24, v.k22, ex[2]] : [v.k24, v.k22] } });
-  }
+  // The 10-day table holds each day's final published rate: let it correct earlier snapshots.
+  for (const [d, v] of Object.entries(r.days)) upsert(d, { c: { [id]: v.k18 ? [v.k24, v.k22, v.k18] : [v.k24, v.k22] } });
   upsert(r.date, { c: { [id]: [r.k24, r.k22, r.k18] } });
 }
+for (const [id, s] of Object.entries(silver.cities)) upsert(today, { s: { [id]: s.g } });
+if (bench) {
+  for (const [d, v] of Object.entries(bench.hist)) upsert(d, { ibja: v });
+  for (const ses of Object.values(bench.sessions)) upsert(ses.date, { ibja: { g999: ses.g[999], g916: ses.g[916], agKg: ses.silverKg } });
+}
 
-// ---- optional spot backfill from the date-tagged currency API ----
 const backfill = Number(opt('--backfill', 0));
 if (backfill > 0) {
   const want = [];
@@ -198,13 +270,12 @@ if (backfill > 0) {
       const s = await spotFromCurrencyApi(d);
       upsert(d, { usdOz: s.usdOz, inrG: r2(s.inrOz / OZ), usdInr: s.usdInr, agG: s.agInrG });
     } catch (e) {
-      console.warn('WARN backfill', d, e.message);
+      warn('backfill', d, e.message);
     }
   });
 }
 
-// keep ~3 years, sorted
-const keys = Object.keys(history.days).sort().slice(-1100);
+const keys = Object.keys(history.days).sort().slice(-1100); // ~3 years
 history = { updated: Date.now(), days: Object.fromEntries(keys.map((k) => [k, history.days[k]])) };
 
 const snapshot = {
@@ -213,18 +284,22 @@ const snapshot = {
   spot,
   premium,
   cities: Object.fromEntries(
-    Object.entries(cityRates).map(([id, { days, ...r }]) => [id, r])
+    Object.entries(cityRates).map(([id, { days, ...r }]) => [id, { ...r, silver: silver.cities[id] || null }])
   ),
-  cityMeta: cities.map(({ id, name }) => ({ id, name })),
+  silverIndia: silver.india,
+  ibja: bench && { rates: bench.rates, silverKg: bench.silverKg, platinumG: bench.platinumG, sessions: bench.sessions, src: bench.src },
+  cityMeta: cities.map(({ id, name, short }) => ({ id, name, short })),
 };
 
 await mkdir(outDir, { recursive: true });
 await mkdir(path.dirname(historyPath), { recursive: true });
 await writeFile(path.join(outDir, 'gold.json'), JSON.stringify(snapshot));
-const histJson = JSON.stringify(history).replace(/\},"/g, '},\n"'); // one day per line → small git diffs
+const histJson = `{"updated":${history.updated},"days":{\n${keys.map((k) => `${JSON.stringify(k)}:${JSON.stringify(history.days[k])}`).join(',\n')}\n}}`;
 await writeFile(historyPath, histJson + '\n');
 await writeFile(path.join(outDir, 'gold-history.json'), histJson);
 
 console.log(
-  `gold: spot $${spot.usdOz}/oz ₹${spot.inrG24}/g (${spot.src}); retail ${Object.keys(cityRates).length}/${cities.length} cities; premium ${premium}; history ${keys.length} days`
+  `gold: spot $${spot.usdOz}/oz ₹${spot.inrG24}/g (${spot.src}); retail ${Object.keys(cityRates).length}/${cities.length} cities` +
+    ` [${[...new Set(Object.values(cityRates).map((r) => r.src))].join(', ')}]; silver ${Object.keys(silver.cities).length} cities;` +
+    ` IBJA ${bench ? `999=₹${bench.rates[999]}/g` : 'n/a'}; premium ${premium}; history ${keys.length} days`
 );

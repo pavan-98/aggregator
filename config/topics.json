@@ -1,6 +1,56 @@
 {
-  "$comment": "Topics pre-built every ~15 min by GitHub Actions. 'google' = Google News RSS spec per language ({top:true} | {section:'WORLD'} | {q:'search words', when:'2d'}). 'feeds' = extra publisher RSS feeds per language. Add/remove topics here; custom topics can also be added from the site itself (fetched live in your browser).",
+  "$comment": "Topics pre-built every ~15 min by GitHub Actions. 'google' = Google News RSS spec per language ({top:true} | {section:'WORLD'} | {q:'search words', when:'2d'}). 'feeds' = extra publisher RSS feeds per language. Add/remove topics here; custom topics can also be added from the site itself (fetched live in your browser). Feed options: 'match' = regex applied to title+summary (keeps only matching stories), 'max' = how many items to read from that feed. A topic with 'city' is used as the Home feed for that gold city.",
   "topics": [
+    {
+      "id": "vizag",
+      "icon": "⚓",
+      "city": "visakhapatnam",
+      "name": {
+        "en": "Visakhapatnam",
+        "te": "విశాఖపట్నం"
+      },
+      "google": {
+        "en": {
+          "q": "Visakhapatnam OR Vizag",
+          "when": "2d"
+        },
+        "te": {
+          "q": "విశాఖపట్నం OR విశాఖ OR వైజాగ్",
+          "when": "2d"
+        }
+      },
+      "feeds": {
+        "en": [
+          {
+            "name": "Vizag Vision",
+            "url": "https://www.vizagvision.com/feed/"
+          }
+        ],
+        "te": [
+          {
+            "name": "Andhrajyothy",
+            "url": "https://www.andhrajyothy.com/rss/feed.xml",
+            "match": "విశాఖ|వైజాగ్|విశాఖపట్నం|Visakhapatnam|Vizag|Visakha",
+            "max": 1000
+          },
+          {
+            "name": "TV9 Telugu",
+            "url": "https://tv9telugu.com/andhra-pradesh/feed",
+            "match": "విశాఖ|వైజాగ్|విశాఖపట్నం|Visakhapatnam|Vizag|Visakha"
+          },
+          {
+            "name": "NTV Telugu",
+            "url": "https://ntvtelugu.com/andhra-pradesh-news/feed",
+            "match": "విశాఖ|వైజాగ్|విశాఖపట్నం|Visakhapatnam|Vizag|Visakha"
+          },
+          {
+            "name": "Asianet Telugu",
+            "url": "https://telugu.asianetnews.com/rss/andhra-pradesh",
+            "match": "విశాఖ|వైజాగ్|విశాఖపట్నం|Visakhapatnam|Vizag|Visakha"
+          }
+        ]
+      }
+    },
     {
       "id": "top",
       "icon": "★",
@@ -97,7 +147,8 @@
           "q": "హైదరాబాద్",
           "when": "2d"
         }
-      }
+      },
+      "city": "hyderabad"
     },
     {
       "id": "india",

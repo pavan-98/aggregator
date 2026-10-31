@@ -22,18 +22,20 @@ for (const topic of topics) {
   for (const lang of LANGS) {
     const g = topic.google?.[lang];
     if (g) jobs.push({ topic: topic.id, lang, name: 'Google News', url: googleNewsUrl(g, lang), google: true });
-    for (const f of topic.feeds?.[lang] || []) jobs.push({ topic: topic.id, lang, name: f.name, url: f.url });
+    for (const f of topic.feeds?.[lang] || [])
+      jobs.push({ topic: topic.id, lang, name: f.name, url: f.url, match: f.match ? new RegExp(f.match, 'iu') : null, max: f.max });
   }
 }
 
 // Same URL may be used by several topics: fetch once.
 const cache = new Map();
 const status = [];
+const maxFor = (url) => Math.max(150, ...jobs.filter((j) => j.url === url).map((j) => j.max || 0));
 await pool([...new Set(jobs.map((j) => j.url))], 8, async (url) => {
   const t0 = Date.now();
   try {
-    const xml = await fetchText(url, { timeout: 25000, retries: 1 });
-    const parsed = parseFeed(xml, { maxItems: 150 });
+    const xml = await fetchText(url, { timeout: 30000, retries: 1 });
+    const parsed = parseFeed(xml, { maxItems: maxFor(url) });
     cache.set(url, parsed.items);
     status.push({ url, ok: true, n: parsed.items.length, ms: Date.now() - t0 });
   } catch (e) {
@@ -52,7 +54,12 @@ for (const topic of topics) {
   for (const lang of LANGS) {
     const lists = jobs
       .filter((j) => j.topic === topic.id && j.lang === lang)
-      .map((j) => cache.get(j.url).map((it) => ({ ...it, s: it.s || j.name })));
+      .map((j) =>
+        cache
+          .get(j.url)
+          .filter((it) => !j.match || j.match.test(`${it.t} ${it.d}`))
+          .map((it) => ({ ...it, s: it.s || j.name }))
+      );
     const items = mergeItems(lists, { max: 80 });
     counts[lang] = items.length;
     await writeFile(
@@ -60,7 +67,7 @@ for (const topic of topics) {
       JSON.stringify({ topic: topic.id, lang, updated: now, items })
     );
   }
-  index.topics.push({ id: topic.id, icon: topic.icon, name: topic.name, google: topic.google, counts });
+  index.topics.push({ id: topic.id, icon: topic.icon, city: topic.city, name: topic.name, google: topic.google, counts });
 }
 
 await writeFile(path.join(outDir, 'topics.json'), JSON.stringify(index));

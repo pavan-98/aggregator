@@ -1,12 +1,18 @@
 {
-  "$comment": "Cities for retail gold rates. 'gr' = goodreturns.in slug, 'pb' = policybazaar.com slug (fallback). First city is the default.",
+  "$comment": "Cities for retail gold/silver rates. First city is the default 'my city'. 'groww' = groww.in slug (primary, one request covers all cities), 'gr' = goodreturns.in slug (fallback, optional).",
   "cities": [
-    { "id": "hyderabad", "name": { "en": "Hyderabad", "te": "హైదరాబాద్" }, "gr": "hyderabad", "pb": "hyderabad" },
-    { "id": "vijayawada", "name": { "en": "Vijayawada", "te": "విజయవాడ" }, "gr": "vijayawada", "pb": "vijayawada" },
-    { "id": "visakhapatnam", "name": { "en": "Visakhapatnam", "te": "విశాఖపట్నం" }, "gr": "visakhapatnam", "pb": "visakhapatnam" },
-    { "id": "chennai", "name": { "en": "Chennai", "te": "చెన్నై" }, "gr": "chennai", "pb": "chennai" },
-    { "id": "bangalore", "name": { "en": "Bengaluru", "te": "బెంగళూరు" }, "gr": "bangalore", "pb": "bangalore" },
-    { "id": "mumbai", "name": { "en": "Mumbai", "te": "ముంబై" }, "gr": "mumbai", "pb": "mumbai" },
-    { "id": "delhi", "name": { "en": "Delhi", "te": "ఢిల్లీ" }, "gr": "delhi", "pb": "delhi" }
+    { "id": "visakhapatnam", "name": { "en": "Visakhapatnam", "te": "విశాఖపట్నం" }, "short": { "en": "Vizag", "te": "విశాఖ" }, "groww": "visakhapatnam", "gr": "visakhapatnam" },
+    { "id": "vijayawada", "name": { "en": "Vijayawada", "te": "విజయవాడ" }, "groww": "vijayawada", "gr": "vijayawada" },
+    { "id": "guntur", "name": { "en": "Guntur", "te": "గుంటూరు" }, "groww": "guntur" },
+    { "id": "rajahmundry", "name": { "en": "Rajahmundry", "te": "రాజమహేంద్రవరం" }, "groww": "rajahmundry" },
+    { "id": "kakinada", "name": { "en": "Kakinada", "te": "కాకినాడ" }, "groww": "kakinada" },
+    { "id": "tirupati", "name": { "en": "Tirupati", "te": "తిరుపతి" }, "groww": "tirupati" },
+    { "id": "nellore", "name": { "en": "Nellore", "te": "నెల్లూరు" }, "groww": "nellore" },
+    { "id": "hyderabad", "name": { "en": "Hyderabad", "te": "హైదరాబాద్" }, "groww": "hyderabad", "gr": "hyderabad" },
+    { "id": "warangal", "name": { "en": "Warangal", "te": "వరంగల్" }, "groww": "warangal" },
+    { "id": "chennai", "name": { "en": "Chennai", "te": "చెన్నై" }, "groww": "chennai", "gr": "chennai" },
+    { "id": "bangalore", "name": { "en": "Bengaluru", "te": "బెంగళూరు" }, "groww": "bangalore", "gr": "bangalore" },
+    { "id": "mumbai", "name": { "en": "Mumbai", "te": "ముంబై" }, "groww": "mumbai", "gr": "mumbai" },
+    { "id": "delhi", "name": { "en": "Delhi", "te": "ఢిల్లీ" }, "groww": "delhi", "gr": "delhi" }
   ]
 }
