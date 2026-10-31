@@ -1,0 +1,267 @@
+{
+  "$comment": "Topics pre-built every ~15 min by GitHub Actions. 'google' = Google News RSS spec per language ({top:true} | {section:'WORLD'} | {q:'search words', when:'2d'}). 'feeds' = extra publisher RSS feeds per language. Add/remove topics here; custom topics can also be added from the site itself (fetched live in your browser).",
+  "topics": [
+    {
+      "id": "top",
+      "icon": "★",
+      "name": {
+        "en": "Top stories",
+        "te": "ముఖ్య వార్తలు"
+      },
+      "google": {
+        "en": {
+          "top": true
+        },
+        "te": {
+          "top": true
+        }
+      },
+      "feeds": {
+        "en": [
+          {
+            "name": "NDTV",
+            "url": "https://feeds.feedburner.com/ndtvnews-top-stories"
+          }
+        ]
+      }
+    },
+    {
+      "id": "telugu-states",
+      "icon": "◆",
+      "name": {
+        "en": "Telangana & AP",
+        "te": "తెలుగు రాష్ట్రాలు"
+      },
+      "google": {
+        "en": {
+          "q": "Telangana OR \"Andhra Pradesh\" OR Hyderabad OR Amaravati",
+          "when": "1d"
+        },
+        "te": {
+          "q": "తెలంగాణ OR ఆంధ్రప్రదేశ్ OR హైదరాబాద్ OR అమరావతి",
+          "when": "1d"
+        }
+      },
+      "feeds": {
+        "en": [
+          {
+            "name": "Telangana Today",
+            "url": "https://telanganatoday.com/feed"
+          },
+          {
+            "name": "Deccan Chronicle",
+            "url": "https://www.deccanchronicle.com/google_feeds.xml"
+          }
+        ],
+        "te": [
+          {
+            "name": "TV9 Telugu",
+            "url": "https://tv9telugu.com/feed"
+          },
+          {
+            "name": "NTV Telugu",
+            "url": "https://ntvtelugu.com/feed"
+          },
+          {
+            "name": "V6 Velugu",
+            "url": "https://www.v6velugu.com/feed"
+          },
+          {
+            "name": "10TV",
+            "url": "https://www.10tv.in/feed"
+          },
+          {
+            "name": "Oneindia Telugu",
+            "url": "https://telugu.oneindia.com/rss/feeds/telugu-news-fb.xml"
+          },
+          {
+            "name": "Asianet Telugu",
+            "url": "https://telugu.asianetnews.com/rss"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hyderabad",
+      "icon": "⌂",
+      "name": {
+        "en": "Hyderabad",
+        "te": "హైదరాబాద్"
+      },
+      "google": {
+        "en": {
+          "q": "Hyderabad",
+          "when": "2d"
+        },
+        "te": {
+          "q": "హైదరాబాద్",
+          "when": "2d"
+        }
+      }
+    },
+    {
+      "id": "india",
+      "icon": "▲",
+      "name": {
+        "en": "India",
+        "te": "భారతదేశం"
+      },
+      "google": {
+        "en": {
+          "section": "NATION"
+        },
+        "te": {
+          "section": "NATION"
+        }
+      }
+    },
+    {
+      "id": "world",
+      "icon": "◍",
+      "name": {
+        "en": "World",
+        "te": "ప్రపంచం"
+      },
+      "google": {
+        "en": {
+          "section": "WORLD"
+        },
+        "te": {
+          "section": "WORLD"
+        }
+      }
+    },
+    {
+      "id": "business",
+      "icon": "₹",
+      "name": {
+        "en": "Business",
+        "te": "వ్యాపారం"
+      },
+      "google": {
+        "en": {
+          "section": "BUSINESS"
+        },
+        "te": {
+          "section": "BUSINESS"
+        }
+      }
+    },
+    {
+      "id": "gold",
+      "icon": "◉",
+      "name": {
+        "en": "Gold & markets",
+        "te": "బంగారం & మార్కెట్లు"
+      },
+      "google": {
+        "en": {
+          "q": "gold price OR gold rate OR silver price OR Sensex OR Nifty",
+          "when": "2d"
+        },
+        "te": {
+          "q": "బంగారం ధర OR వెండి ధర OR సెన్సెక్స్ OR నిఫ్టీ",
+          "when": "3d"
+        }
+      }
+    },
+    {
+      "id": "tech",
+      "icon": "⌘",
+      "name": {
+        "en": "Technology",
+        "te": "టెక్నాలజీ"
+      },
+      "google": {
+        "en": {
+          "section": "TECHNOLOGY"
+        },
+        "te": {
+          "section": "TECHNOLOGY"
+        }
+      }
+    },
+    {
+      "id": "cricket",
+      "icon": "●",
+      "name": {
+        "en": "Cricket",
+        "te": "క్రికెట్"
+      },
+      "google": {
+        "en": {
+          "q": "cricket",
+          "when": "1d"
+        },
+        "te": {
+          "q": "క్రికెట్",
+          "when": "2d"
+        }
+      }
+    },
+    {
+      "id": "sports",
+      "icon": "◐",
+      "name": {
+        "en": "Sports",
+        "te": "క్రీడలు"
+      },
+      "google": {
+        "en": {
+          "section": "SPORTS"
+        },
+        "te": {
+          "section": "SPORTS"
+        }
+      }
+    },
+    {
+      "id": "cinema",
+      "icon": "▶",
+      "name": {
+        "en": "Entertainment",
+        "te": "సినిమా"
+      },
+      "google": {
+        "en": {
+          "section": "ENTERTAINMENT"
+        },
+        "te": {
+          "section": "ENTERTAINMENT"
+        }
+      }
+    },
+    {
+      "id": "science",
+      "icon": "✱",
+      "name": {
+        "en": "Science",
+        "te": "సైన్స్"
+      },
+      "google": {
+        "en": {
+          "section": "SCIENCE"
+        },
+        "te": {
+          "section": "SCIENCE"
+        }
+      }
+    },
+    {
+      "id": "health",
+      "icon": "✚",
+      "name": {
+        "en": "Health",
+        "te": "ఆరోగ్యం"
+      },
+      "google": {
+        "en": {
+          "section": "HEALTH"
+        },
+        "te": {
+          "section": "HEALTH"
+        }
+      }
+    }
+  ]
+}

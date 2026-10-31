@@ -1,0 +1,11 @@
+{
+  "name": "My News · నా వార్తలు",
+  "short_name": "My News",
+  "description": "Personal ad-free news (English & Telugu) and daily gold rates.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#1f5fbf",
+  "icons": [{ "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

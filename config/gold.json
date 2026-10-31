@@ -1,0 +1,12 @@
+{
+  "$comment": "Cities for retail gold rates. 'gr' = goodreturns.in slug, 'pb' = policybazaar.com slug (fallback). First city is the default.",
+  "cities": [
+    { "id": "hyderabad", "name": { "en": "Hyderabad", "te": "హైదరాబాద్" }, "gr": "hyderabad", "pb": "hyderabad" },
+    { "id": "vijayawada", "name": { "en": "Vijayawada", "te": "విజయవాడ" }, "gr": "vijayawada", "pb": "vijayawada" },
+    { "id": "visakhapatnam", "name": { "en": "Visakhapatnam", "te": "విశాఖపట్నం" }, "gr": "visakhapatnam", "pb": "visakhapatnam" },
+    { "id": "chennai", "name": { "en": "Chennai", "te": "చెన్నై" }, "gr": "chennai", "pb": "chennai" },
+    { "id": "bangalore", "name": { "en": "Bengaluru", "te": "బెంగళూరు" }, "gr": "bangalore", "pb": "bangalore" },
+    { "id": "mumbai", "name": { "en": "Mumbai", "te": "ముంబై" }, "gr": "mumbai", "pb": "mumbai" },
+    { "id": "delhi", "name": { "en": "Delhi", "te": "ఢిల్లీ" }, "gr": "delhi", "pb": "delhi" }
+  ]
+}

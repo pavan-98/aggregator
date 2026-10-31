@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>My News · నా వార్తలు</title>
+  <meta name="description" content="Personal ad-free news (English & Telugu) and daily gold rates." />
+  <meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <script>
+    // Apply theme + language before first paint to avoid a flash.
+    try {
+      const s = JSON.parse(localStorage.getItem('pnd.v1') || '{}');
+      if (s.theme && s.theme !== 'auto') document.documentElement.dataset.theme = s.theme;
+      if (s.uiLang) document.documentElement.lang = s.uiLang;
+    } catch {}
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./" aria-label="Home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M9 12h14M9 17h14M9 22h8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <span class="brand-text" data-t="appTitle">My News</span>
+      </a>
+      <div class="topbar-actions">
+        <span class="updated" id="updated" aria-live="polite"></span>
+        <div class="seg" role="group" aria-label="Language">
+          <button type="button" class="seg-btn" data-lang="en" lang="en">EN</button>
+          <button type="button" class="seg-btn" data-lang="te" lang="te">తె</button>
+        </div>
+        <button type="button" class="icon-btn" id="btn-refresh" data-t-title="refresh" title="Refresh">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="sr-only" data-t="refresh">Refresh</span>
+        </button>
+        <button type="button" class="icon-btn" id="btn-settings" data-t-title="settings" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          <span class="sr-only" data-t="settings">Settings</span>
+        </button>
+      </div>
+    </div>
+    <nav class="topics" aria-label="Topics">
+      <div class="topics-scroll" id="topics" role="tablist"></div>
+      <button type="button" class="chip chip-edit" id="btn-edit-topics" data-t-title="editTopics" title="Edit topics">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <span class="sr-only" data-t="editTopics">Edit topics</span>
+      </button>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <aside class="gold" id="gold" aria-labelledby="gold-title"></aside>
+
+    <section class="news" aria-labelledby="news-title">
+      <div class="news-head">
+        <h1 id="news-title" class="news-title"></h1>
+        <div class="news-tools">
+          <label class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input type="search" id="filter" autocomplete="off" />
+          </label>
+          <button type="button" class="btn btn-live" id="btn-live">
+            <span class="live-dot" aria-hidden="true"></span><span data-t="live">Live</span>
+          </button>
+        </div>
+      </div>
+      <p class="news-status" id="news-status" aria-live="polite"></p>
+      <ol class="feed" id="feed"></ol>
+      <footer class="foot">
+        <p data-t="footer"></p>
+        <p class="muted" data-t="shortcuts"></p>
+      </footer>
+    </section>
+  </main>
+
+  <dialog class="sheet" id="dlg-topics" aria-labelledby="dlg-topics-title"></dialog>
+  <dialog class="sheet" id="dlg-settings" aria-labelledby="dlg-settings-title"></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>

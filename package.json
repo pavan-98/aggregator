@@ -1,0 +1,13 @@
+{
+  "name": "personal-news-dashboard",
+  "private": true,
+  "type": "module",
+  "description": "Ad-free personal news (English + Telugu) and gold-rate dashboard for GitHub Pages.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "news": "node scripts/fetch-news.mjs",
+    "gold": "node scripts/fetch-gold.mjs",
+    "serve": "python3 -m http.server 8080 -d _site"
+  },
+  "engines": { "node": ">=20" }
+}
