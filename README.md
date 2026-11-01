@@ -5,9 +5,10 @@
 👉 **Use it:** https://pavan-98.github.io/aggregator/
 
 <p>
-  <img src="site/assets/screens/phone-welcome.png" width="200" alt="Pick your city on first launch">
-  <img src="site/assets/screens/phone-home.png" width="200" alt="City home: gold rates and local news">
-  <img src="site/assets/screens/phone-gold.png" width="200" alt="Gold rates for every karat">
+  <img src="site/assets/screens/city.jpg" width="190" alt="Your city's news and today's gold rate">
+  <img src="site/assets/screens/gold.jpg" width="190" alt="Gold rates for every karat">
+  <img src="site/assets/screens/telugu.jpg" width="190" alt="News in Telugu and English">
+  <img src="site/assets/screens/trends.jpg" width="190" alt="Price trends and jewellery bill calculator">
 </p>
 
 Google News and most news apps are full of ads and trackers. This is a fast, clean, personal reader: headlines only, linking straight to the publishers. It runs entirely on free services: no server, no accounts, no API keys, no ads, no tracking.
@@ -56,6 +57,7 @@ node scripts/build.mjs                       # Node 20+; fetches everything into
 python3 -m http.server 8080 -d _site         # open http://localhost:8080
 node scripts/fetch-gold.mjs --backfill 365   # (re)fill a year of spot-price history
 node scripts/make-icons.cjs                  # regenerate PNG app icons (needs Playwright)
+node scripts/make-screens.cjs                # regenerate the install-dialog screenshots from the live site
 ```
 
 There are no dependencies: plain Node scripts and plain browser JavaScript. There is no `npm install` and no bundler.

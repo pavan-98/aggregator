@@ -23,8 +23,11 @@
     { "name": "All news", "short_name": "News", "url": "./#/news", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ],
   "screenshots": [
-    { "src": "assets/screens/phone-home.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "City news and gold rates" },
-    { "src": "assets/screens/phone-gold.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Gold rates for every karat" },
-    { "src": "assets/screens/desktop.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide", "label": "Desktop view" }
+    { "src": "assets/screens/city.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "Your city’s news and today’s gold rate" },
+    { "src": "assets/screens/gold.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "Gold rates for every karat" },
+    { "src": "assets/screens/telugu.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "News in Telugu and English" },
+    { "src": "assets/screens/trends.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "Price trends and jewellery bill calculator" },
+    { "src": "assets/screens/topics.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "12 topics, no ads, works offline" },
+    { "src": "assets/screens/desktop.jpg", "sizes": "1920x1080", "type": "image/jpeg", "form_factor": "wide", "label": "Taaza on a computer" }
   ]
 }
