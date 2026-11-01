@@ -186,7 +186,7 @@ function wideSlide(s, img) {
     <div class="halo" style="width:1400px;height:1400px;right:-300px;top:-200px"></div>
     <div style="position:absolute;left:96px;top:0;bottom:0;width:720px;display:flex;flex-direction:column;justify-content:center">
       <div>${brand}</div>
-      <h1 style="font-size:100px;margin-top:44px">${s.title}</h1>
+      <h1 style="font-size:90px;margin-top:40px">${s.title}</h1>
       <p class="sub" style="font-size:38px;margin-top:30px;max-width:620px">${s.sub.replace('తెలుగు', '<span lang="te">తెలుగు</span>')}</p>
     </div>
     <div class="browser" style="left:${W - BW - 72}px;top:${(H - (BW * 800) / 1280 - 52) / 2}px;width:${BW}px">
