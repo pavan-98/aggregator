@@ -22,7 +22,8 @@ const DEFAULTS = {
   muted: [],
   proxy: '',
   installDismissed: 0,
-  installedAt: 0, // set when this browser installed the app (Android shares storage with it)
+  installedAt: 0,
+  live: false, // Live mode, only when the user turns it on; remembered across visits // set when this browser installed the app (Android shares storage with it)
   install: { visits: 0, shown: 0, last: 0 }, // full-screen install sheet schedule
 };
 function load() {
@@ -240,17 +241,37 @@ async function fetchViaProxies(feedUrl) {
   outer.abort();
   return items;
 }
+// Live results are kept on the device (last 8 topic/language pairs, 40 stories each), so a
+// reload or a return to the app shows them instantly while a fresh fetch runs.
+const LIVE_KEY = 'pnd.live';
+const LIVE_TTL = 2 * 60e3; // at most one fetch per topic every 2 minutes
+const liveId = (topic, lang) => `${topic.file || topic.id}.${lang}`;
+function liveCacheAll() { try { return JSON.parse(localStorage.getItem(LIVE_KEY) || '{}') || {}; } catch { return {}; } }
+const liveCacheGet = (topic, lang) => liveCacheAll()[liveId(topic, lang)] || null;
+function liveCachePut(topic, lang, items) {
+  const all = liveCacheAll();
+  all[liveId(topic, lang)] = { at: Date.now(), items: items.slice(0, 40) };
+  const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 8);
+  try { localStorage.setItem(LIVE_KEY, JSON.stringify(Object.fromEntries(keep))); } catch {}
+}
+// If every proxy fails twice in a row, pause Live for 10 minutes and use the scheduled data.
+let liveFailStreak = 0;
+let livePausedUntil = 0;
+const livePaused = () => Date.now() < livePausedUntil;
 async function fetchLive(topic, lang) {
   const spec = topic.google?.[lang];
-  if (!spec) return [];
-  const cacheKey = `pnd.live.${topic.file || topic.id}.${lang}`;
+  if (!spec) return { items: [], at: Date.now() };
+  if (livePaused()) throw new Error('live paused');
+  if (!navigator.onLine) throw new Error('offline');
   try {
-    const c = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
-    if (c && Date.now() - c.at < 90e3) return c.items;
-  } catch {}
-  const items = await fetchViaProxies(googleNewsUrl(spec, lang));
-  try { sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), items })); } catch {}
-  return items;
+    const items = await fetchViaProxies(googleNewsUrl(spec, lang));
+    liveFailStreak = 0;
+    liveCachePut(topic, lang, items);
+    return { items, at: Date.now() };
+  } catch (e) {
+    if (++liveFailStreak >= 2) { liveFailStreak = 0; livePausedUntil = Date.now() + 10 * 60e3; }
+    throw e;
+  }
 }
 
 // ================================================================== feeds (home + news view share this)
@@ -306,7 +327,7 @@ function createFeed(root) {
   const filterEl = root.querySelector('input[type=search]');
   const liveBtn = root.querySelector('.btn-live');
   const moreBtn = root.querySelector('.btn-more');
-  const st = { topic: null, items: [], updated: 0, limit: 40, req: 0, done: 0, liveMode: false };
+  const st = { topic: null, items: [], updated: 0, limit: 40, req: 0, done: 0, pending: null };
 
   function render() {
     root.querySelector('.empty')?.remove();
@@ -340,60 +361,110 @@ function createFeed(root) {
         h('div', { class: 'story-body' }, h('div', { class: 'sk', style: 'width:92%' }), h('div', { class: 'sk', style: 'width:64%' }),
           h('div', { class: 'sk', style: 'width:30%;height:10px;margin-top:10px' })))));
   }
-  async function load(topic, { quiet = false, live = st.liveMode } = {}) {
+  // New stories that arrive while the reader is scrolled into the list wait behind a
+  // "↑ N new stories" pill instead of pushing what they're reading down the page.
+  const pill = h('button', { type: 'button', class: 'new-pill', hidden: true, onclick: () => { applyPending(); root.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+  root.append(pill);
+  const readingBelowTop = () => !root.closest('.view')?.hidden && listEl.getBoundingClientRect().top < 0;
+  function applyPending() {
+    if (!st.pending) return;
+    st.items = st.pending;
+    st.pending = null;
+    pill.hidden = true;
+    render();
+  }
+  function update(items, { quiet }) {
+    const shown = new Set(st.items.map((i) => i.l));
+    const fresh = items.filter((i) => !shown.has(i.l)).length;
+    if (quiet && st.items.length && fresh && readingBelowTop()) {
+      st.pending = items;
+      pill.textContent = `↑ ${t('newStories', { n: fresh })}`;
+      pill.hidden = false;
+      return;
+    }
+    st.items = items;
+    st.pending = null;
+    pill.hidden = true;
+    render();
+  }
+  let sf = 0;
+  window.addEventListener('scroll', () => {
+    if (!st.pending || sf) return;
+    sf = requestAnimationFrame(() => { sf = 0; if (st.pending && !readingBelowTop()) applyPending(); });
+  }, { passive: true });
+
+  function setStatus({ wantLive, liveAt, liveFailed, updated }) {
+    let msg = '';
+    if (wantLive && liveAt && !liveFailed) msg = `${t('liveUpdated')} ${rel(liveAt)}`;
+    else if (wantLive && liveFailed) msg = st.topic?.custom ? t('loadFail') : livePaused() ? t('livePaused') : t('liveFail');
+    if (!msg && updated) msg = `${t('updated')} ${rel(updated)}${offline ? ` · ${t('offline')}` : ''}`;
+    statusEl.textContent = msg;
+    st.updated = wantLive && liveAt && !liveFailed ? liveAt : updated;
+    updateTopbarTime();
+  }
+
+  async function load(topic, { quiet = false } = {}) {
     if (!topic) return;
     const changed = (st.topic?.file || st.topic?.id) !== (topic.file || topic.id);
     st.topic = topic;
-    if (changed) { st.items = []; st.limit = 40; st.done = 0; if (filterEl) filterEl.value = ''; }
+    if (changed) { st.items = []; st.pending = null; pill.hidden = true; st.limit = 40; st.done = 0; if (filterEl) filterEl.value = ''; }
     const my = ++st.req;
     const langs = newsLangs();
-    const wantLive = live || topic.custom;
+    const wantLive = state.live || !!topic.custom;
     if (titleEl.dataset.fixed !== '1') titleEl.textContent = topicName(topic);
-    if (!quiet) { statusEl.textContent = t('loading'); if (!st.items.length) skeleton(); }
-    liveBtn.classList.toggle('busy', wantLive);
-    let updated = 0;
-    let liveOk = false;
-    let liveErr = false;
-    const lists = await Promise.all(langs.map(async (lang) => {
-      const parts = [];
-      if (!topic.custom) {
-        try {
-          const j = await getJSON(`${DATA}/news/${topic.file || topic.id}.${lang}.json`);
-          updated = Math.max(updated, j.updated || 0);
-          parts.push(j.items.map((i) => ({ ...i, lang })));
-        } catch {}
-      }
-      if (wantLive) {
-        try {
-          parts.unshift((await fetchLive(topic, lang)).map((i) => ({ ...i, lang })));
-          liveOk = true;
-        } catch { liveErr = true; }
-      }
-      return parts.flat();
+    liveBtn.classList.toggle('on', wantLive);
+    liveBtn.classList.remove('busy');
+    if (!quiet && !st.items.length) { statusEl.textContent = t('loading'); skeleton(); }
+
+    // 1) Instant: the scheduled snapshot plus the last live results kept on this device.
+    const scheduled = await Promise.all(langs.map(async (lang) => {
+      if (topic.custom) return { items: [], updated: 0 };
+      try {
+        const j = await getJSON(`${DATA}/news/${topic.file || topic.id}.${lang}.json`);
+        return { items: j.items.map((i) => ({ ...i, lang })), updated: j.updated || 0 };
+      } catch { return { items: [], updated: 0 }; }
+    }));
+    if (my !== st.req) return;
+    const updated = Math.max(0, ...scheduled.map((x) => x.updated));
+    const cached = langs.map((lang) => (wantLive ? liveCacheGet(topic, lang) : null));
+    const withLang = (list, k) => (list || []).map((i) => ({ ...i, lang: langs[k] }));
+    const combine = (liveLists) => mergeItems([...liveLists, ...scheduled.map((x) => x.items)]);
+    const first = combine(cached.map((c, k) => withLang(c?.items, k)));
+    let liveAt = Math.max(0, ...cached.map((c) => c?.at || 0));
+    if (first.length) { update(first, { quiet: quiet || !changed }); st.done = 1; }
+    setStatus({ wantLive, liveAt, liveFailed: false, updated });
+
+    // 2) Live on: refresh in the background when the device copy is older than 2 minutes.
+    const stale = wantLive && !document.hidden && cached.some((c, k) => topic.google?.[langs[k]] && (!c || Date.now() - c.at > LIVE_TTL));
+    if (!stale) {
+      if (!first.length) { st.done = 1; update([], { quiet: false }); }
+      return;
+    }
+    liveBtn.classList.add('busy');
+    const fresh = await Promise.all(langs.map(async (lang, k) => {
+      try { return await fetchLive(topic, lang); } catch { return null; }
     }));
     if (my !== st.req) return;
     liveBtn.classList.remove('busy');
-    liveBtn.classList.toggle('on', st.liveMode || topic.custom);
-    st.items = mergeItems(lists);
-    st.updated = liveOk ? Date.now() : updated;
+    const liveFailed = fresh.every((f) => !f) && !cached.some(Boolean);
+    liveAt = Math.max(liveAt, ...fresh.map((f) => f?.at || 0));
+    update(combine(fresh.map((f, k) => withLang(f ? f.items : cached[k]?.items, k))), { quiet: first.length > 0 });
     st.done = 1;
-    render();
-    let msg = '';
-    if (liveOk) msg = t('liveOn');
-    else if (wantLive && liveErr) msg = topic.custom ? t('loadFail') : t('liveFail');
-    if (!msg && updated) msg = `${t('updated')} ${rel(updated)}${offline ? ` · ${t('offline')}` : ''}`;
-    statusEl.textContent = msg;
-    updateTopbarTime();
+    if (!st.items.length) render();
+    setStatus({ wantLive, liveAt, liveFailed: liveFailed || (fresh.every((f) => !f) && !liveAt), updated });
   }
   liveBtn.addEventListener('click', () => {
-    st.liveMode = !st.liveMode;
-    liveBtn.classList.toggle('on', st.liveMode);
-    load(st.topic, { live: st.liveMode });
+    state.live = !state.live; // remembered: stays on across reloads until turned off
+    save();
+    feeds.forEach((f) => f.syncLive());
+    if (state.live) { liveFailStreak = 0; livePausedUntil = 0; } // a deliberate tap retries straight away
+    load(st.topic);
   });
+  const syncLive = () => liveBtn.classList.toggle('on', state.live || !!st.topic?.custom);
   moreBtn.addEventListener('click', () => { st.limit += 40; render(); });
   let ft;
   filterEl?.addEventListener('input', () => { clearTimeout(ft); ft = setTimeout(render, 120); });
-  return { load, render, st };
+  return { load, render, st, syncLive };
 }
 
 let homeFeed;
@@ -482,16 +553,32 @@ function renderHome({ quiet } = {}) {
 }
 
 // ================================================================== NEWS
+// Chips are rebuilt only when the topic list changes, and the bar scrolls only when the
+// active topic changes and is off screen — so background refreshes never yank the bar
+// away from where the user scrolled it.
+let chipsKey = '';
+let chipsActive = '';
 function renderTopicChips() {
   const bar = $('#topics');
   const list = visibleTopics();
   if (!list.find((x) => x.id === state.active) && list[0]) state.active = list[0].id;
-  bar.replaceChildren(...list.map((x) =>
-    h('button', { type: 'button', class: 'chip', role: 'tab', 'aria-selected': String(x.id === state.active), onclick: () => switchTopic(x.id) },
-      h('span', { class: 'chip-icon', 'aria-hidden': 'true', text: x.icon || '•' }),
-      h('span', { text: topicName(x) }))));
+  const key = list.map((x) => `${x.id}:${x.icon || ''}:${topicName(x)}`).join('|');
+  if (key !== chipsKey) {
+    chipsKey = key;
+    bar.replaceChildren(...list.map((x) =>
+      h('button', { type: 'button', class: 'chip', role: 'tab', 'data-id': x.id, onclick: () => switchTopic(x.id) },
+        h('span', { class: 'chip-icon', 'aria-hidden': 'true', text: x.icon || '•' }),
+        h('span', { text: topicName(x) }))));
+  }
+  bar.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-selected', String(c.dataset.id === state.active)));
+  if (chipsActive === state.active) return;
+  const first = !chipsActive;
+  chipsActive = state.active;
   const sel = bar.querySelector('[aria-selected="true"]');
-  if (sel) bar.scrollTo({ left: Math.max(0, sel.offsetLeft - bar.offsetLeft - 40), behavior: 'smooth' });
+  if (!sel) return;
+  const cr = sel.getBoundingClientRect();
+  const br = bar.getBoundingClientRect();
+  if (cr.left < br.left || cr.right > br.right - 24) bar.scrollBy({ left: cr.left - br.left - 40, behavior: first ? 'auto' : 'smooth' });
 }
 function renderNews({ quiet } = {}) {
   renderTopicChips();
@@ -1216,7 +1303,15 @@ function wire() {
     updateTopbarTime();
   };
   setInterval(tick, 30e3);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); pollSpot(); } });
+  // Coming back to the app: with Live on, fetch the newest stories (throttled to every 2 min).
+  const resumeLive = () => {
+    if (!state.live || document.hidden) return;
+    if (view === 'home') homeFeed.load(homeTopic(), { quiet: true });
+    else if (view === 'news') newsFeed.load(visibleTopics().find((x) => x.id === state.active), { quiet: true });
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); pollSpot(); resumeLive(); } });
+  window.addEventListener('pageshow', (e) => { if (e.persisted) resumeLive(); });
+  window.addEventListener('online', resumeLive);
   setInterval(pollSpot, 60e3);
   let rt;
   let lastW = window.innerWidth;
