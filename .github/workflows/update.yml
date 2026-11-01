@@ -34,9 +34,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Gives the site's public address (incl. a custom domain) for link-preview tags.
+      - id: pages
+        uses: actions/configure-pages@v5
+
       # ubuntu-latest already ships Node 20+, so no setup-node step (saves time/minutes).
       - name: Fetch news + gold and build site
         run: node --version && node scripts/build.mjs
+        env:
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
 
       - name: Commit daily gold history
         if: github.event.schedule == '41 13 * * *' || github.event_name == 'workflow_dispatch'

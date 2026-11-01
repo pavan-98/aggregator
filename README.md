@@ -57,7 +57,7 @@ node scripts/build.mjs                       # Node 20+; fetches everything into
 python3 -m http.server 8080 -d _site         # open http://localhost:8080
 node scripts/fetch-gold.mjs --backfill 365   # (re)fill a year of spot-price history
 node scripts/make-icons.cjs                  # regenerate PNG app icons (needs Playwright)
-node scripts/make-screens.cjs                # regenerate the install-dialog screenshots from the live site
+node scripts/make-screens.cjs                # regenerate the install-dialog screenshots and link-preview image
 ```
 
 There are no dependencies: plain Node scripts and plain browser JavaScript. There is no `npm install` and no bundler.

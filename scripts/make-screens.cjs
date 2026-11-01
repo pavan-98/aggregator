@@ -53,6 +53,13 @@ const WIDE = {
   bg: ['#2a6fd6', '#0f3a80', '#5b9bff'], ink: '#fff',
 };
 
+// Link preview for WhatsApp / Telegram / X / Facebook (og:image), 1200×630.
+const SHARE = {
+  file: 'share.jpg',
+  title: 'Ad-free news<br>&amp; gold rates', sub: 'English and తెలుగు, for your city. Free.',
+  bg: ['#2a6fd6', '#0f3a80', '#5b9bff'], ink: '#fff',
+};
+
 // ------------------------------------------------------------ raw app captures
 const PHONE_VP = { width: 412, height: 852 }; // + 40 px status bar = 412×892 screen
 const STATUS_H = 40;
@@ -140,11 +147,23 @@ function vars(s, w, h) {
 }
 const brand = `<div class="brand"><img src="${ICON}" alt=""><span>Taaza</span><b>·</b><span lang="te">తాజా</span></div>`;
 
-function phoneSlide(s, img) {
-  const W = 1080, H = 1920, SW = 540; // screen width inside the frame
-  const k = SW / PHONE_VP.width;
+// Phone frame around an app capture: status bar + app + gesture bar, 540 px screen.
+// `zoom` scales the whole device for smaller layouts.
+function phone(img, style = '', zoom = 1) {
+  const SW = 540, k = SW / PHONE_VP.width;
   const SH = Math.round((PHONE_VP.height + STATUS_H + GEST_H) * k);
-  const PW = SW + 32;
+  return `<div class="phone" style="${style};width:${SW + 32}px;zoom:${zoom}">
+      <div class="screen" style="height:${SH}px">
+        <div class="status" style="height:${STATUS_H * k}px"><span>9:41</span>${statusIcons('currentColor')}</div>
+        <img class="app" src="${img}" alt="">
+        <div class="gesture" style="height:${GEST_H * k}px"><i></i></div>
+        <div class="cam"></div>
+      </div>
+    </div>`;
+}
+
+function phoneSlide(s, img) {
+  const W = 1080, H = 1920;
   return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head>
   <body style="${vars(s, W, H)}">
     <div class="dots"></div>
@@ -154,14 +173,7 @@ function phoneSlide(s, img) {
       <h1 style="font-size:122px;margin-top:46px">${s.title}</h1>
       <p class="sub" style="font-size:44px;margin-top:30px;max-width:900px">${s.sub}</p>
       <!-- sits at the bottom; long text pushes it down instead of overlapping -->
-      <div class="phone" style="position:relative;flex:none;align-self:center;margin:56px 0 64px;margin-top:auto;width:${PW}px">
-      <div class="screen" style="height:${SH}px">
-        <div class="status" id="status" style="height:${STATUS_H * k}px"><span>9:41</span>${statusIcons('currentColor')}</div>
-        <img class="app" id="app" src="${img}" alt="">
-        <div class="gesture" id="gesture" style="height:${GEST_H * k}px"><i></i></div>
-        <div class="cam"></div>
-      </div>
-    </div>
+        ${phone(img, `position:relative;flex:none;align-self:center;margin:56px 0 64px;margin-top:auto`)}
     </div>
   </body></html>`;
 }
@@ -184,14 +196,30 @@ function wideSlide(s, img) {
   </body></html>`;
 }
 
+function shareSlide(s, home, gold) {
+  const W = 1200, H = 630;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head>
+  <body style="${vars(s, W, H)}">
+    <div class="dots"></div>
+    <div class="halo" style="width:900px;height:900px;right:-200px;top:-250px"></div>
+    <div style="position:absolute;left:64px;top:0;bottom:0;width:600px;display:flex;flex-direction:column;justify-content:center">
+      <div style="zoom:.8">${brand}</div>
+      <h1 style="font-size:76px;margin-top:30px">${s.title}</h1>
+      <p class="sub" style="font-size:30px;margin-top:22px;max-width:520px">${s.sub.replace('తెలుగు', '<span lang="te">తెలుగు</span>')}</p>
+    </div>
+    ${phone(gold, 'position:absolute;left:1640px;top:150px;transform:rotate(6deg)', 0.6)}
+    ${phone(home, 'position:absolute;left:1180px;top:100px', 0.6)}
+  </body></html>`;
+}
+
 // ------------------------------------------------------------ render
-async function render(browser, html, w, h, file) {
+async function render(browser, html, w, h, file, quality = 88) {
   const p = await browser.newPage({ viewport: { width: w, height: h } });
   await p.setContent(html, { waitUntil: 'load' });
   // Status bar takes the colour of the app's top bar, with contrasting text.
   await p.evaluate(() => {
-    const img = document.getElementById('app'), st = document.getElementById('status');
-    if (!img || !st) return;
+    for (const scr of document.querySelectorAll('.screen')) {
+    const img = scr.querySelector('.app');
     const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = 4;
     const g = c.getContext('2d');
     const paint = (el, y) => {
@@ -200,19 +228,23 @@ async function render(browser, html, w, h, file) {
       el.style.background = `rgb(${r},${gr},${b})`;
       el.style.color = 0.299 * r + 0.587 * gr + 0.114 * b > 140 ? '#111' : '#f5f5f5';
     };
-    paint(st, 1);
-    paint(document.getElementById('gesture'), img.naturalHeight - 3);
+    paint(scr.querySelector('.status'), 1);
+    paint(scr.querySelector('.gesture'), img.naturalHeight - 3);
+    }
   });
   await p.evaluate(() => document.fonts.ready);
-  await p.screenshot({ path: path.join(OUT, file), type: 'jpeg', quality: 88 });
+  await p.screenshot({ path: path.join(OUT, file), type: 'jpeg', quality });
   await p.close();
   console.log('wrote', file, Math.round(fs.statSync(path.join(OUT, file)).size / 1024) + ' KB');
 }
 
 (async () => {
   const browser = await chromium.launch();
-  const phone = { ...devices['Pixel 7'], viewport: PHONE_VP, deviceScaleFactor: 3 };
-  for (const s of PHONE) await render(browser, phoneSlide(s, await capture(browser, s.shot, phone)), 1080, 1920, s.file);
+  const mobile = { ...devices['Pixel 7'], viewport: PHONE_VP, deviceScaleFactor: 3 };
+  const shots = {};
+  for (const s of PHONE) await render(browser, phoneSlide(s, (shots[s.file] = await capture(browser, s.shot, mobile))), 1080, 1920, s.file);
+  // WhatsApp skips preview images much over 300 KB, so the share card is compressed harder.
+  await render(browser, shareSlide(SHARE, shots['city.jpg'], shots['gold.jpg']), 1200, 630, SHARE.file, 82);
   const desk = { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 };
   await render(browser, wideSlide(WIDE, await capture(browser, WIDE.shot, desk)), 1920, 1080, WIDE.file);
   await browser.close();

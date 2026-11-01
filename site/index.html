@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Taaza · తాజా</title>
   <meta name="description" content="Ad-free news in English & Telugu with local city news and daily gold rates. Installable, works offline." />
+  <!-- Link previews (WhatsApp, Telegram, X, Facebook). Crawlers need absolute URLs:
+       scripts/build.mjs replaces __SITE_URL__ with the Pages address at build time. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Taaza · తాజా" />
+  <meta property="og:title" content="Taaza · తాజా: ad-free news & gold rates" />
+  <meta property="og:description" content="News in English & Telugu for your city, plus today's gold rate for every karat. No ads, no tracking. Install it on your phone." />
+  <meta property="og:url" content="__SITE_URL__" />
+  <meta property="og:image" content="__SITE_URL__assets/screens/share.jpg" />
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Taaza app showing city news and gold rates" />
+  <meta property="og:locale" content="en_IN" />
+  <meta property="og:locale:alternate" content="te_IN" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href="__SITE_URL__" />
   <meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />

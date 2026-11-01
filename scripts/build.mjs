@@ -13,6 +13,22 @@ await rm(out, { recursive: true, force: true });
 await cp(path.join(root, 'site'), out, { recursive: true });
 await mkdir(path.join(out, 'data'), { recursive: true });
 
+// Absolute site URL for link-preview tags (og:image must be absolute for WhatsApp & co).
+// CI passes SITE_URL from actions/configure-pages (handles custom domains); otherwise it is
+// derived from the repository name, and local builds fall back to relative URLs.
+const siteUrl = (() => {
+  if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/?$/, '/');
+  const [owner, repo] = (process.env.GITHUB_REPOSITORY || '').split('/');
+  if (!owner) return '';
+  const host = `https://${owner.toLowerCase()}.github.io/`;
+  return repo.toLowerCase() === `${owner.toLowerCase()}.github.io` ? host : `${host}${repo}/`;
+})();
+const indexFile = path.join(out, 'index.html');
+let indexHtml = (await readFile(indexFile, 'utf8')).replaceAll('__SITE_URL__', siteUrl);
+if (!siteUrl) indexHtml = indexHtml.replace(/\s*<link rel="canonical" href="" \/>/, '');
+await writeFile(indexFile, indexHtml);
+console.log(`build: site URL ${siteUrl || '(relative, local build)'}`);
+
 // Stamp the service worker with a hash of the app shell, so phones pick up a new
 // version only when the app itself changed (not on every 15-minute data refresh).
 const shell = ['index.html', 'manifest.webmanifest', 'assets/styles.css', 'assets/app.js', 'assets/i18n.js', 'assets/gnews.js', 'assets/chart.js'];
