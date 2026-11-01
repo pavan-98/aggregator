@@ -147,6 +147,8 @@ export function mergeItems(lists, { max = 80, maxAgeHours = 72, minFresh = 25 } 
   const all = [];
   for (const it of lists.flat()) {
     const nt = normTitle(it.t);
+    // Skip "headlines" that are only a site name (e.g. "RegNews").
+    if (it.t.trim().length < 20 && it.t.trim().split(/\s+/).length < 3) continue;
     if (seenL.has(it.l) || seenT.has(nt)) continue;
     seenL.add(it.l);
     seenT.add(nt);

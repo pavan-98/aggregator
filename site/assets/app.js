@@ -22,6 +22,7 @@ const DEFAULTS = {
   muted: [],
   proxy: '',
   installDismissed: 0,
+  installedAt: 0, // set when this browser installed the app (Android shares storage with it)
   install: { visits: 0, shown: 0, last: 0 }, // full-screen install sheet schedule
 };
 function load() {
@@ -253,18 +254,25 @@ async function fetchLive(topic, lang) {
 }
 
 // ================================================================== feeds (home + news view share this)
+// Some feeds carry items whose "headline" is just the site's name ("RegNews").
+const isJunkTitle = (title) => title.trim().length < 20 && title.trim().split(/\s+/).length < 3;
 function mergeItems(lists) {
   const seen = new Set();
   const out = [];
   const norm = (s) => s.toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '').slice(0, 70);
   for (const it of lists.flat()) {
     const k = norm(it.t);
-    if (!it.t || !safeUrl(it.l) || seen.has(k) || seen.has(it.l)) continue;
+    if (!it.t || !safeUrl(it.l) || seen.has(k) || seen.has(it.l) || isJunkTitle(it.t)) continue;
     seen.add(k); seen.add(it.l);
     out.push(it);
   }
   return out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 }
+
+// Coloured initial badge per publisher (desktop cards).
+const graphemes = (str) => (typeof Intl.Segmenter === 'function' ? [...new Intl.Segmenter().segment(str)].map((x) => x.segment) : [...str]);
+const srcHue = (str) => [...str].reduce((a, c) => (a * 31 + c.codePointAt(0)) % 360, 7);
+const srcAva = (src) => h('span', { class: 'src-ava', 'aria-hidden': 'true', style: `--hue:${srcHue(src)}`, text: (graphemes(src.trim())[0] || '•').toUpperCase() });
 
 let feeds = [];
 function storyEl(i, both) {
@@ -274,6 +282,7 @@ function storyEl(i, both) {
       h('h3', { class: 'story-title', lang: i.lang }, h('a', { href: i.l, target: '_blank', rel: 'noopener noreferrer', text: i.t })),
       i.d ? h('p', { class: 'story-desc', lang: i.lang, text: i.d }) : null,
       h('div', { class: 'story-meta' },
+        i.s ? srcAva(i.s) : null,
         i.s ? h('span', { class: 'src', text: i.s }) : null,
         i.s && i.ts ? h('span', { 'aria-hidden': 'true', text: '·' }) : null,
         i.ts ? h('time', { datetime: new Date(i.ts).toISOString(), text: rel(i.ts) }) : null,
@@ -313,6 +322,12 @@ function createFeed(root) {
       moreBtn.hidden = true;
       if (st.done) listEl.after(h('div', { class: 'empty', text: st.items.length ? t('noNews') : t('loadFail') }));
       return;
+    }
+    // Desktop shows the first card as a large lead: pick a recent story with a real headline.
+    if (isWide() && !q) {
+      const lead = items.slice(0, 8).findIndex((i) => i.d && i.t.length >= 40);
+      const pick = lead > 0 ? lead : lead === 0 ? 0 : items.slice(0, 8).findIndex((i) => i.t.length >= 45);
+      if (pick > 0) items.unshift(...items.splice(pick, 1));
     }
     listEl.replaceChildren(...items.slice(0, st.limit).map((i) => storyEl(i, both)));
     moreBtn.hidden = items.length <= st.limit;
@@ -429,7 +444,27 @@ function route() {
   if (changed) window.scrollTo(0, 0);
   pollSpot();
 }
+// Desktop page header: greeting/date on Home, a title on the other views (hidden on phones).
+function renderPageHead() {
+  const el = $('#page-head');
+  if (!el) return;
+  const now = new Date();
+  const hr = now.getHours();
+  const city = gold && state.city ? cityName(state.city) : '';
+  const today = new Intl.DateTimeFormat(locale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
+  const gc = gold && goldCity();
+  const heads = {
+    home: [t(hr < 12 ? 'greetMorning' : hr < 17 ? 'greetAfternoon' : 'greetEvening'), [today, city].filter(Boolean).join(' · ')],
+    news: [t('navNews'), t('newsSub')],
+    gold: [t('goldRate'), [gc ? cityName(gc.id) : '', gc ? fmtDate(gc.date) : ''].filter(Boolean).join(' · ')],
+    settings: [t('navSettings'), t('settingsSub')],
+  };
+  const [title, sub] = heads[view] || heads.home;
+  el.replaceChildren(h('p', { class: 'ph-kicker', text: sub }), h('h1', { class: 'ph-title', text: title }));
+}
+
 function renderView(v, opts = {}) {
+  renderPageHead();
   if (v === 'home') renderHome(opts);
   else if (v === 'news') renderNews(opts);
   else if (v === 'gold') renderGoldPage();
@@ -439,7 +474,7 @@ function renderView(v, opts = {}) {
 // ================================================================== HOME
 function renderHome({ quiet } = {}) {
   renderInstallBanner();
-  $('#home-gold').replaceChildren(goldSummaryCard());
+  $('#home-gold').replaceChildren(...[goldSummaryCard(), homeTrendCard()].filter(Boolean));
   const title = $('#home-feed .feed-title');
   title.dataset.fixed = '1';
   title.textContent = t('cityNews', { city: gold ? cityName(state.city) : '' });
@@ -540,7 +575,7 @@ function goldSummaryCard() {
     h('a', { class: 'mini-link', href: '#/gold' }, h('span', { text: t('seeAll') }), svg(ICON.right)));
 }
 
-function goldSeries(city, karatKey) {
+function goldSeries(city, karatKey, range = state.range) {
   if (!goldHist?.days) return [];
   const idx = KEY_IDX[karatKey];
   const ratio = city?.k24 ? city[karatKey] / city.k24 : [1, 0.916, 0.75][idx];
@@ -553,7 +588,7 @@ function goldSeries(city, karatKey) {
     const j = anchors.reduce((a, b) => (Math.abs(b - i) < Math.abs(a - i) ? b : a));
     return rows[j].real / rows[j].spot;
   };
-  const from = new Date(Date.now() - state.range * 864e5).toISOString().slice(0, 10);
+  const from = new Date(Date.now() - range * 864e5).toISOString().slice(0, 10);
   const pts = [];
   rows.forEach((r, i) => {
     if (r.d < from) return;
@@ -561,6 +596,24 @@ function goldSeries(city, karatKey) {
     else if (r.spot && premAt(i)) pts.push({ d: r.d, v: Math.round(r.spot * premAt(i)), est: true });
   });
   return pts;
+}
+
+// Desktop Home: 30-day 22K sparkline next to today's rates.
+function homeTrendCard() {
+  const city = goldCity();
+  if (!isWide() || !city) return null;
+  const pts = goldSeries(city, 'k22', 30);
+  if (pts.length < 2) return null;
+  const first = pts[0].v;
+  const last = pts.at(-1).v;
+  const pct = ((last - first) / first) * 100;
+  const box = h('div', { class: 'chart chart-sm' });
+  requestAnimationFrame(() => renderChart(box, pts, { fmtV: (v) => inr(v), fmtVShort: (v) => `₹${shortInr(v)}`, fmtD: fmtDate, estLabel: t('estimated') }));
+  return h('a', { class: 'card trend-card', href: '#/gold' },
+    h('div', { class: 'card-head' },
+      h('h3', { class: 'card-title', text: `${t('trend')} · 22K` }),
+      h('span', { class: `chg ${pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat'}`, text: `${pct > 0 ? '▲' : pct < 0 ? '▼' : '•'} ${num(Math.abs(pct), 1)}% · ${t('days30')}` })),
+    h('div', { class: 'chart-wrap' }, box));
 }
 
 function renderGoldPage() {
@@ -758,6 +811,9 @@ function installEnv() {
   if (isInApp && isMobile) return 'inapp';
   if (deferredPrompt) return 'prompt'; // Chrome / Edge / Samsung Internet (Android or desktop)
   if (isIOS) return 'ios'; // Safari, and Chrome/Edge/Firefox on iOS 16.4+
+  // Installed from this browser earlier: Chromium stops offering installation, so there is
+  // nothing to ask (the flag clears itself if the browser offers installation again).
+  if (state.installedAt) return 'elsewhere';
   if (isAndroid) return /firefox/i.test(ua) ? 'menu-firefox' : 'menu';
   return 'desktop';
 }
@@ -765,6 +821,7 @@ function installEnv() {
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault(); // keep it for our own button instead of the browser's mini-infobar
   deferredPrompt = e;
+  if (state.installedAt) { state.installedAt = 0; save(); } // offered again → it was uninstalled
   redrawInstallSheet?.();
   renderInstallBanner();
   if (view === 'settings') renderSettings();
@@ -772,6 +829,8 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
+  state.installedAt = Date.now();
+  save();
   $('#dlg-install').open && $('#dlg-install').close();
   renderInstallBanner();
   if (view === 'settings') renderSettings();
@@ -804,6 +863,7 @@ function installDue() {
 function maybeAutoInstallSheet() {
   if (!isMobile || !state.city || isStandalone() || sheetShownThisLoad || !installDue()) return;
   const env = installEnv();
+  if (env === 'elsewhere') return;
   // Android Chrome/Edge/Samsung: only when the browser offers installation — it doesn't
   // once the app is installed, so people who already have it aren't asked again.
   if (env === 'menu') { waitingForPrompt = true; return; }
@@ -830,7 +890,7 @@ function openInstallSheet({ auto = false } = {}) {
         step(1, t('iosStep1'), t('iosStep1Hint'), svg(ICON.share)),
         step(2, t('iosStep2'), t('iosStep2Hint'), svg(ICON.plusSq)),
         step(3, t('iosStep3')));
-    } else if (env === 'menu' || env === 'menu-firefox') {
+    } else if (env === 'menu' || env === 'menu-firefox' || env === 'elsewhere') {
       action = h('ol', { class: 'is-steps' },
         step(1, t('menuStep1'), null, h('b', { text: '⋮' })),
         step(2, t(env === 'menu-firefox' ? 'menuStep2Firefox' : 'menuStep2'), null, svg(ICON.plusSq)));
@@ -864,6 +924,8 @@ function installBlock() {
   if (env === 'installed') return h('p', { class: 'muted', style: 'margin:0', text: t('installed') });
   if (env === 'prompt') return h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn btn-primary', onclick: promptInstall }, svg(ICON.plusSq), t('install')));
   if (env === 'desktop') return h('div', { class: 'ios-steps' }, svg(ICON.plusSq), h('span', { text: t('desktopHint') }));
+  if (env === 'elsewhere') return h('div', { class: 'row' }, h('span', { class: 'muted', text: t('installedOpen') }),
+    h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => openInstallSheet() }, t('howToInstall')));
   return h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openInstallSheet() }, svg(ICON.plusSq), t('howToInstall')));
 }
 
@@ -871,7 +933,10 @@ function renderInstallBanner() {
   const el = $('#install-banner');
   const env = installEnv();
   const snoozed = Date.now() - (state.installDismissed || 0) < 14 * 864e5;
-  const show = !snoozed && !sheetShownThisLoad && (env === 'prompt' || (isMobile && env !== 'installed'));
+  // A real Install button wherever the browser offers it; "How?" steps only where installing is
+  // a manual job (iPhone, Firefox, in-app browsers). Chrome on Android without an offer has
+  // usually installed it already, so it gets nothing.
+  const show = !snoozed && !sheetShownThisLoad && ['prompt', 'ios', 'inapp', 'menu-firefox'].includes(env);
   el.hidden = !show;
   if (!show) return;
   const msg = env === 'prompt' ? t('installHint') : env === 'inapp' ? t('inappShort') : env === 'ios' ? t('iosInstall') : t('menuShort');
@@ -1168,6 +1233,7 @@ function wire() {
 
 (async function main() {
   try {
+    if (isStandalone() && !state.installedAt) { state.installedAt = Date.now(); save(); }
     if (!isStandalone() && !sessionStorage.getItem('pnd.visit')) {
       sessionStorage.setItem('pnd.visit', '1');
       state.install = { ...state.install, visits: (state.install?.visits || 0) + 1 };
