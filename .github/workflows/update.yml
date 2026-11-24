@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 5
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment_retry.outputs.page_url || steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -64,7 +64,20 @@ jobs:
           # "github-pages" artifacts and deploy-pages fails ("Multiple artifacts named ...").
           name: github-pages-${{ github.run_attempt }}
 
+      # GitHub's artifact listing can lag a second or two behind the upload, so deploy-pages
+      # sometimes finds "0 artifacts" for one that was just uploaded. Retry once after a pause.
       - id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
+
+      - name: Wait before retrying deploy
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 20
+
+      - id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-${{ github.run_attempt }}
