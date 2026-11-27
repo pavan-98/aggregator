@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fetches every topic in config/topics.json (Google News RSS + publisher feeds),
-// in English and Telugu, and writes small JSON files the static site reads.
+// in English, Telugu and Tamil, and writes small JSON files the static site reads.
 //
 //   node scripts/fetch-news.mjs [outDir]      (default: _site/data)
 
@@ -8,11 +8,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchText, parseFeed, mergeItems, pool } from './lib/feed.mjs';
-import { googleNewsUrl } from '../site/assets/gnews.js';
+import { googleNewsUrl, LANGS } from '../site/assets/gnews.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.resolve(process.argv[2] || path.join(root, '_site/data'));
-const LANGS = ['en', 'te'];
 
 const { topics } = JSON.parse(await readFile(path.join(root, 'config/topics.json'), 'utf8'));
 
@@ -22,19 +21,18 @@ const citiesCfg = JSON.parse(await readFile(path.join(root, 'config/cities.json'
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const orQuery = (names) => names.map((n) => (/\s/.test(n) ? `"${n}"` : n)).join(' OR ');
 for (const c of citiesCfg.cities) {
-  const en = c.aliases?.en?.length ? c.aliases.en : [c.name.en];
-  const te = c.aliases?.te?.length ? c.aliases.te : [c.name.te];
-  const match = [...en, ...te].map(esc).join('|');
+  const names = Object.fromEntries(LANGS.map((l) => [l, c.aliases?.[l]?.length ? c.aliases[l] : [c.name[l] || c.name.en]]));
+  const match = [...new Set(Object.values(names).flat())].map(esc).join('|');
   const region = citiesCfg.regionFeeds?.[c.region] || {};
   const feeds = {};
+  const google = {};
   for (const lang of LANGS) {
     const list = [...(region[lang] || []).map((f) => ({ ...f, match: f.match || match })), ...(c.feeds?.[lang] || [])];
     if (list.length) feeds[lang] = list;
+    // 'q' overrides the name search where a name is also an ordinary word (Erode).
+    google[lang] = { q: c.q?.[lang] || orQuery(names[lang]), when: '2d' };
   }
-  topics.push({
-    id: `city-${c.id}`, icon: '⌂', city: c.id, name: c.name, feeds,
-    google: { en: { q: orQuery(en), when: '2d' }, te: { q: orQuery(te), when: '2d' } },
-  });
+  topics.push({ id: `city-${c.id}`, icon: '⌂', city: c.id, name: c.name, feeds, google });
 }
 
 // Build the job list: one job per (topic, lang, source).

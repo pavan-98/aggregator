@@ -2,7 +2,7 @@
 // (manifest "screenshots") and the README, using the pre-installed Playwright.
 //   node scripts/make-screens.cjs [site-url]
 // Defaults to the live site so the slides show real headlines and rates.
-// Telugu needs a Telugu font on the machine (e.g. Noto Sans Telugu).
+// Telugu and Tamil need fonts on the machine (e.g. Noto Sans Telugu, Noto Sans Tamil).
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -30,8 +30,14 @@ const PHONE = [
   {
     file: 'telugu.jpg', label: 'News in Telugu and English',
     shot: { hash: '#/news', uiLang: 'te', newsLang: 'te', active: 'top' },
-    title: '<span lang="te">తెలుగు</span> &amp;<br>English', sub: 'Read in either language, or both together.',
+    title: '<span lang="te">తెలుగు</span> &amp;<br>English', sub: 'Read one language, or mix them together.',
     bg: ['#6b3fd4', '#2e1a6e', '#a585ff'], ink: '#fff',
+  },
+  {
+    file: 'tamil.jpg', label: 'News in Tamil, for Chennai, Coimbatore, Madurai, Erode and Puducherry',
+    shot: { hash: '#/home', uiLang: 'ta', newsLang: 'ta', city: 'erode' },
+    title: '<span lang="ta">தமிழ்</span> news,<br>your town', sub: 'Chennai, Coimbatore, Madurai, Erode, Puducherry and more.',
+    bg: ['#d4552f', '#7a2410', '#ff9a73'], ink: '#fff',
   },
   {
     file: 'trends.jpg', label: 'Price trends and jewellery bill calculator',
@@ -40,23 +46,23 @@ const PHONE = [
     bg: ['#2a2723', '#0b0a09', '#c58b14'], ink: '#fff', accent: '#f3c24f',
   },
   {
-    file: 'topics.jpg', label: '12 topics, no ads, works offline',
+    file: 'topics.jpg', label: '13 topics, no ads, works offline',
     shot: { hash: '#/news', active: 'cricket' },
-    title: 'Zero ads.<br>Zero tracking.', sub: '12 topics, offline reading, free forever.',
+    title: 'Zero ads.<br>Zero tracking.', sub: '13 topics, offline reading, free forever.',
     bg: ['#11907f', '#064e45', '#4fe0c6'], ink: '#fff',
   },
 ];
 const WIDE = {
   file: 'desktop.jpg', label: 'Taaza on a computer',
   shot: { hash: '#/home' },
-  title: 'Ad-free news<br>&amp; gold rates', sub: 'English and తెలుగు, for your city. Free and open source.',
+  title: 'Ad-free news<br>&amp; gold rates', sub: 'English, తెలుగు and தமிழ், for your city. Free and open source.',
   bg: ['#2a6fd6', '#0f3a80', '#5b9bff'], ink: '#fff',
 };
 
 // Link preview for WhatsApp / Telegram / X / Facebook (og:image), 1200×630.
 const SHARE = {
   file: 'share.jpg',
-  title: 'Ad-free news<br>&amp; gold rates', sub: 'English and తెలుగు, for your city. Free.',
+  title: 'Ad-free news<br>&amp; gold rates', sub: 'English, తెలుగు &amp; தமிழ், for your city. Free.',
   bg: ['#2a6fd6', '#0f3a80', '#5b9bff'], ink: '#fff',
 };
 
@@ -68,7 +74,7 @@ const GEST_H = 22; // gesture-bar strip under the app, like a real phone
 async function capture(browser, shot, device) {
   const ctx = await browser.newContext(device);
   const seed = {
-    schema: 3, city: CITY, uiLang: shot.uiLang || 'en', newsLang: shot.newsLang || 'auto',
+    schema: 3, city: shot.city || CITY, uiLang: shot.uiLang || 'en', newsLang: shot.newsLang || 'auto',
     theme: shot.theme || 'light', active: shot.active || 'my-city',
     installDismissed: Date.now(), install: { visits: 1, shown: 9, last: Date.now() },
   };
@@ -101,11 +107,12 @@ async function capture(browser, shot, device) {
 // ------------------------------------------------------------ slide templates
 const css = `
   *{box-sizing:border-box;margin:0}
-  body{width:var(--w);height:var(--h);overflow:hidden;font-family:'Inter Display','Inter','Noto Sans Telugu',system-ui,sans-serif;color:var(--ink);
+  body{width:var(--w);height:var(--h);overflow:hidden;font-family:'Inter Display','Inter','Noto Sans Telugu','Noto Sans Tamil',system-ui,sans-serif;color:var(--ink);
     background:radial-gradient(1100px 900px at 85% 8%,color-mix(in srgb,var(--glow) 55%,transparent),transparent 60%),
                radial-gradient(900px 700px at 0% 100%,color-mix(in srgb,var(--glow) 30%,transparent),transparent 60%),
                linear-gradient(160deg,var(--c1),var(--c2));position:relative}
   [lang=te]{font-family:'Noto Sans Telugu',sans-serif}
+  [lang=ta]{font-family:'Noto Sans Tamil',sans-serif}
   .dots{position:absolute;inset:0;background-image:radial-gradient(color-mix(in srgb,var(--ink) 14%,transparent) 1.6px,transparent 1.8px);background-size:34px 34px;
     -webkit-mask-image:linear-gradient(180deg,#000,transparent 55%);mask-image:linear-gradient(180deg,#000,transparent 55%)}
   .halo{position:absolute;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--glow) 55%,transparent),transparent);pointer-events:none}
@@ -117,7 +124,7 @@ const css = `
   .brand b{opacity:.6;margin:0 -4px}
   .brand span[lang=te]{font-weight:700;opacity:.9;position:relative;top:3px}
   h1{font-weight:800;letter-spacing:-.035em;line-height:1.02}
-  h1 [lang=te]{letter-spacing:0;font-weight:800;font-size:.86em;display:inline-block;line-height:1;vertical-align:-.04em}
+  h1 [lang=te],h1 [lang=ta]{letter-spacing:0;font-weight:800;font-size:.86em;display:inline-block;line-height:1;vertical-align:-.04em}
   h1 em{font-style:normal;color:var(--accent)}
   p.sub{font-weight:500;opacity:.88;letter-spacing:-.01em;line-height:1.3}
   .phone{position:absolute;border-radius:86px;padding:16px;background:linear-gradient(145deg,#3a3a3e,#0c0c0e 40%,#1c1c1f);
@@ -145,6 +152,7 @@ const statusIcons = (c) => `<span class="icons">
 function vars(s, w, h) {
   return `--w:${w}px;--h:${h}px;--c1:${s.bg[0]};--c2:${s.bg[1]};--glow:${s.bg[2]};--ink:${s.ink};--accent:${s.accent || s.ink}`;
 }
+const langSpans = (str) => str.replace('తెలుగు', '<span lang="te">తెలుగు</span>').replace('தமிழ்', '<span lang="ta">தமிழ்</span>');
 const brand = `<div class="brand"><img src="${ICON}" alt=""><span>Taaza</span><b>·</b><span lang="te">తాజా</span></div>`;
 
 // Phone frame around an app capture: status bar + app + gesture bar, 540 px screen.
@@ -187,7 +195,7 @@ function wideSlide(s, img) {
     <div style="position:absolute;left:96px;top:0;bottom:0;width:720px;display:flex;flex-direction:column;justify-content:center">
       <div>${brand}</div>
       <h1 style="font-size:90px;margin-top:40px">${s.title}</h1>
-      <p class="sub" style="font-size:38px;margin-top:30px;max-width:620px">${s.sub.replace('తెలుగు', '<span lang="te">తెలుగు</span>')}</p>
+      <p class="sub" style="font-size:38px;margin-top:30px;max-width:620px">${langSpans(s.sub)}</p>
     </div>
     <div class="browser" style="left:${W - BW - 72}px;top:${(H - (BW * 800) / 1280 - 52) / 2}px;width:${BW}px">
       <div class="bar"><i></i><i></i><i></i><div class="url">${SITE.replace(/^https?:\/\//, '')}</div></div>
@@ -205,7 +213,7 @@ function shareSlide(s, home, gold) {
     <div style="position:absolute;left:64px;top:0;bottom:0;width:600px;display:flex;flex-direction:column;justify-content:center">
       <div style="zoom:.8">${brand}</div>
       <h1 style="font-size:76px;margin-top:30px">${s.title}</h1>
-      <p class="sub" style="font-size:30px;margin-top:22px;max-width:520px">${s.sub.replace('తెలుగు', '<span lang="te">తెలుగు</span>')}</p>
+      <p class="sub" style="font-size:30px;margin-top:22px;max-width:520px">${langSpans(s.sub)}</p>
     </div>
     ${phone(gold, 'position:absolute;left:1640px;top:150px;transform:rotate(6deg)', 0.6)}
     ${phone(home, 'position:absolute;left:1180px;top:100px', 0.6)}

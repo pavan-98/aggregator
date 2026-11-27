@@ -2,7 +2,7 @@
   "name": "taaza",
   "private": true,
   "type": "module",
-  "description": "Taaza (తాజా): ad-free English & Telugu news with city news and gold rates. Installable PWA on GitHub Pages.",
+  "description": "Taaza (తాజా): ad-free English, Telugu & Tamil news with city news and gold rates. Installable PWA on GitHub Pages.",
   "scripts": {
     "build": "node scripts/build.mjs",
     "news": "node scripts/fetch-news.mjs",
