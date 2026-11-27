@@ -342,7 +342,7 @@ function createFeed(root) {
     if (st.topic && titleEl.dataset.fixed !== '1') titleEl.textContent = topicName(st.topic);
     const q = (filterEl?.value || '').trim().toLowerCase();
     const muted = new Set(state.muted.map((m) => m.toLowerCase()));
-    const both = newsLangs().length > 1;
+    const both = new Set(st.items.map((i) => i.lang)).size > 1; // tag each story's language when they're mixed
     const items = st.items.filter(
       (i) => !muted.has((i.s || '').toLowerCase()) && (!q || i.t.toLowerCase().includes(q) || (i.s || '').toLowerCase().includes(q))
     );
@@ -418,6 +418,13 @@ function createFeed(root) {
     if (changed) { st.items = []; st.pending = null; pill.hidden = true; st.limit = 40; st.done = 0; if (filterEl) filterEl.value = ''; }
     const my = ++st.req;
     const langs = newsLangs();
+    const readSnapshot = async (lang) => {
+      if (topic.custom) return { items: [], updated: 0 };
+      try {
+        const j = await getJSON(`${DATA}/news/${topic.file || topic.id}.${lang}.json`);
+        return { items: j.items.map((i) => ({ ...i, lang })), updated: j.updated || 0 };
+      } catch { return { items: [], updated: 0 }; }
+    };
     const wantLive = state.live || !!topic.custom;
     if (titleEl.dataset.fixed !== '1') titleEl.textContent = topicName(topic);
     liveBtn.classList.toggle('on', wantLive);
@@ -425,13 +432,12 @@ function createFeed(root) {
     if (!quiet && !st.items.length) { statusEl.textContent = t('loading'); skeleton(); }
 
     // 1) Instant: the scheduled snapshot plus the last live results kept on this device.
-    const scheduled = await Promise.all(langs.map(async (lang) => {
-      if (topic.custom) return { items: [], updated: 0 };
-      try {
-        const j = await getJSON(`${DATA}/news/${topic.file || topic.id}.${lang}.json`);
-        return { items: j.items.map((i) => ({ ...i, lang })), updated: j.updated || 0 };
-      } catch { return { items: [], updated: 0 }; }
-    }));
+    const scheduled = await Promise.all(langs.map(readSnapshot));
+    // Hardly any stories in the chosen languages (e.g. Tamil news about Guntur): add English.
+    if (!topic.custom && !langs.includes('en') && scheduled.reduce((n, x) => n + x.items.length, 0) < 5) {
+      langs.push('en');
+      scheduled.push(await readSnapshot('en'));
+    }
     if (my !== st.req) return;
     const updated = Math.max(0, ...scheduled.map((x) => x.updated));
     const cached = langs.map((lang) => (wantLive ? liveCacheGet(topic, lang) : null));
