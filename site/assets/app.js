@@ -1,5 +1,5 @@
 import { makeT } from './i18n.js';
-import { googleNewsUrl } from './gnews.js';
+import { googleNewsUrl, LANGS } from './gnews.js';
 import { renderChart } from './chart.js';
 
 // ================================================================== state
@@ -7,8 +7,8 @@ const KEY = 'pnd.v1';
 const SCHEMA = 3;
 const DEFAULTS = {
   schema: SCHEMA,
-  uiLang: (navigator.language || '').startsWith('te') ? 'te' : 'en',
-  newsLang: 'auto', // auto | en | te | both
+  uiLang: LANGS.find((l) => l !== 'en' && (navigator.language || '').startsWith(l)) || 'en',
+  newsLang: 'auto', // 'auto' (same as the app) or one or more of en / te / ta joined by '+', e.g. 'en+ta'
   theme: 'auto',
   order: [],
   hidden: [],
@@ -93,7 +93,7 @@ function toast(msg) {
 }
 
 // ================================================================== formatting
-const locale = () => (state.uiLang === 'te' ? 'te-IN' : 'en-IN');
+const locale = () => `${state.uiLang}-IN`;
 const inr = (v, frac = 0) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: frac, minimumFractionDigits: frac }).format(v);
 const usd = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v);
@@ -148,19 +148,19 @@ function goldCity() {
 // The user's city news appears as one stable topic, 'my-city', whatever the city is.
 function myCityTopic() {
   const pre = index.topics.find((x) => x.city === state.city);
-  const name = { en: cityMeta(state.city)?.name?.en || state.city, te: cityMeta(state.city)?.name?.te || state.city };
+  const name = Object.fromEntries(LANGS.map((l) => [l, cityMeta(state.city)?.name?.[l] || state.city]));
   if (pre) return { ...pre, id: 'my-city', file: pre.id, icon: '⌂', name, custom: false };
   if (!state.city) return null;
   // City not pre-built (e.g. removed from config): fetch it live.
-  return { id: 'my-city', icon: '⌂', custom: true, name, google: { en: { q: name.en, when: '2d' }, te: { q: name.te, when: '2d' } } };
+  return { id: 'my-city', icon: '⌂', custom: true, name, google: Object.fromEntries(LANGS.map((l) => [l, { q: name[l], when: '2d' }])) };
 }
 function allTopics() {
   const built = index.topics.filter((x) => !x.city).map((x) => ({ ...x, custom: false }));
   const mine = myCityTopic();
   if (mine) built.unshift(mine);
   const custom = state.custom.map((c) => ({
-    id: c.id, icon: '#', custom: true, name: { en: c.name, te: c.name },
-    google: { en: { q: c.q, when: '7d' }, te: { q: c.q, when: '7d' } },
+    id: c.id, icon: '#', custom: true, name: Object.fromEntries(LANGS.map((l) => [l, c.name])),
+    google: Object.fromEntries(LANGS.map((l) => [l, { q: c.q, when: '7d' }])),
   }));
   const list = [...built, ...custom];
   const pos = new Map(state.order.map((id, i) => [id, i]));
@@ -171,7 +171,15 @@ function allTopics() {
 }
 const visibleTopics = () => allTopics().filter((x) => !state.hidden.includes(x.id));
 const topicName = (x) => x.name?.[state.uiLang] || x.name?.en || x.id;
-const newsLangs = () => (state.newsLang === 'both' ? ['en', 'te'] : [state.newsLang === 'auto' ? state.uiLang : state.newsLang]);
+// News language: 'auto' follows the app language; otherwise any mix of languages, e.g. 'en+ta'.
+// ('both' is how older versions stored English + Telugu.)
+function newsLangs() {
+  const v = state.newsLang === 'both' ? 'en+te' : state.newsLang || 'auto';
+  const picked = v === 'auto' ? [] : LANGS.filter((l) => v.split('+').includes(l));
+  return picked.length ? picked : [state.uiLang];
+}
+const UI_LANGS = [['en', 'English'], ['te', 'తెలుగు'], ['ta', 'தமிழ்']];
+const LANG_TAG = { en: 'EN', te: 'తె', ta: 'த' };
 const homeTopic = myCityTopic;
 
 // ================================================================== live fetching (CORS proxies)
@@ -307,7 +315,7 @@ function storyEl(i, both) {
         i.s ? h('span', { class: 'src', text: i.s }) : null,
         i.s && i.ts ? h('span', { 'aria-hidden': 'true', text: '·' }) : null,
         i.ts ? h('time', { datetime: new Date(i.ts).toISOString(), text: rel(i.ts) }) : null,
-        both ? h('span', { class: 'lang-tag', text: i.lang === 'te' ? 'తె' : 'EN' }) : null)),
+        both ? h('span', { class: 'lang-tag', lang: i.lang, text: LANG_TAG[i.lang] || i.lang }) : null)),
     img ? h('img', { class: 'story-thumb', src: img, alt: '', loading: 'lazy', decoding: 'async', width: 84, height: 64,
       referrerPolicy: 'no-referrer', onerror: (e) => e.target.remove() }) : null,
     i.s ? h('button', { type: 'button', class: 'story-mute', title: `${t('mute')}: ${i.s}`, 'aria-label': `${t('mute')}: ${i.s}`, text: '⊘',
@@ -334,7 +342,7 @@ function createFeed(root) {
     if (st.topic && titleEl.dataset.fixed !== '1') titleEl.textContent = topicName(st.topic);
     const q = (filterEl?.value || '').trim().toLowerCase();
     const muted = new Set(state.muted.map((m) => m.toLowerCase()));
-    const both = newsLangs().length > 1;
+    const both = new Set(st.items.map((i) => i.lang)).size > 1; // tag each story's language when they're mixed
     const items = st.items.filter(
       (i) => !muted.has((i.s || '').toLowerCase()) && (!q || i.t.toLowerCase().includes(q) || (i.s || '').toLowerCase().includes(q))
     );
@@ -410,6 +418,13 @@ function createFeed(root) {
     if (changed) { st.items = []; st.pending = null; pill.hidden = true; st.limit = 40; st.done = 0; if (filterEl) filterEl.value = ''; }
     const my = ++st.req;
     const langs = newsLangs();
+    const readSnapshot = async (lang) => {
+      if (topic.custom) return { items: [], updated: 0 };
+      try {
+        const j = await getJSON(`${DATA}/news/${topic.file || topic.id}.${lang}.json`);
+        return { items: j.items.map((i) => ({ ...i, lang })), updated: j.updated || 0 };
+      } catch { return { items: [], updated: 0 }; }
+    };
     const wantLive = state.live || !!topic.custom;
     if (titleEl.dataset.fixed !== '1') titleEl.textContent = topicName(topic);
     liveBtn.classList.toggle('on', wantLive);
@@ -417,13 +432,12 @@ function createFeed(root) {
     if (!quiet && !st.items.length) { statusEl.textContent = t('loading'); skeleton(); }
 
     // 1) Instant: the scheduled snapshot plus the last live results kept on this device.
-    const scheduled = await Promise.all(langs.map(async (lang) => {
-      if (topic.custom) return { items: [], updated: 0 };
-      try {
-        const j = await getJSON(`${DATA}/news/${topic.file || topic.id}.${lang}.json`);
-        return { items: j.items.map((i) => ({ ...i, lang })), updated: j.updated || 0 };
-      } catch { return { items: [], updated: 0 }; }
-    }));
+    const scheduled = await Promise.all(langs.map(readSnapshot));
+    // Hardly any stories in the chosen languages (e.g. Tamil news about Guntur): add English.
+    if (!topic.custom && !langs.includes('en') && scheduled.reduce((n, x) => n + x.items.length, 0) < 5) {
+      langs.push('en');
+      scheduled.push(await readSnapshot('en'));
+    }
     if (my !== st.req) return;
     const updated = Math.max(0, ...scheduled.map((x) => x.updated));
     const cached = langs.map((lang) => (wantLive ? liveCacheGet(topic, lang) : null));
@@ -1043,6 +1057,15 @@ function renderSettings() {
   const card = (title, ...body) => h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', { class: 'card-title', text: title })), h('div', { class: 'set-body' }, ...body));
   const segRow = (value, opts, onpick) => h('div', { class: 'seg wide', role: 'group' },
     ...opts.map(([v, l]) => h('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(v === value), text: l, onclick: () => onpick(v) })));
+  // 'Same as app', or tap any number of languages to read them mixed together.
+  const newsLangRow = () => {
+    const picked = state.newsLang === 'auto' ? [] : newsLangs();
+    const setNews = (list) => { state.newsLang = list.length ? LANGS.filter((l) => list.includes(l)).join('+') : 'auto'; save(); renderSettings(); };
+    return h('div', { class: 'seg wide seg-news', role: 'group' },
+      h('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(!picked.length), text: t('sameAsUi'), onclick: () => setNews([]) }),
+      ...LANGS.map((l) => h('button', { type: 'button', class: 'seg-btn', lang: l, 'aria-pressed': String(picked.includes(l)), text: LANG_TAG[l],
+        onclick: () => setNews(picked.includes(l) ? picked.filter((x) => x !== l) : [...picked, l]) })));
+  };
   const field = (label, ctrl, hint) => h('label', { class: 'field' }, h('span', { text: label }), ctrl, hint ? h('small', { text: hint }) : null);
   const fileIn = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: importSettings });
 
@@ -1052,9 +1075,8 @@ function renderSettings() {
       field(t('city'), h('select', { onchange: (e) => setCity(e.target.value) },
         ...(gold?.cityMeta || [{ id: state.city }]).map((c) => h('option', { value: c.id, selected: c.id === state.city, text: cityName(c.id) }))), t('myCityHint'))),
     card(t('language'),
-      h('div', { class: 'field' }, h('span', { text: t('uiLanguage') }), segRow(state.uiLang, [['en', 'English'], ['te', 'తెలుగు']], (v) => setLang(v))),
-      h('div', { class: 'field' }, h('span', { text: t('newsLanguage') }),
-        segRow(state.newsLang, [['auto', t('sameAsUi')], ['en', 'EN'], ['te', 'తె'], ['both', t('both')]], (v) => { state.newsLang = v; save(); renderSettings(); }))),
+      h('div', { class: 'field' }, h('span', { text: t('uiLanguage') }), segRow(state.uiLang, UI_LANGS, (v) => setLang(v))),
+      h('div', { class: 'field' }, h('span', { text: t('newsLanguage') }), newsLangRow(), h('small', { text: t('newsLanguageHint') }))),
     card(t('theme'), segRow(state.theme, [['auto', t('themeAuto')], ['light', t('themeLight')], ['dark', t('themeDark')]], (v) => { state.theme = v; save(); applyTheme(); renderSettings(); })),
     card(t('navNews'),
       h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn', text: t('editTopics'), onclick: openTopics })),
@@ -1095,7 +1117,7 @@ function openWelcome() {
       h('h2', { id: 'dlg-welcome-title', text: t('welcome') }),
       h('p', { class: 'muted', text: t('welcomeText') }),
       h('div', { class: 'seg wide', role: 'group', 'aria-label': t('language') },
-        ...[['en', 'English'], ['te', 'తెలుగు']].map(([v, l]) => h('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(state.uiLang === v), text: l,
+        ...UI_LANGS.map(([v, l]) => h('button', { type: 'button', class: 'seg-btn', lang: v, 'aria-pressed': String(state.uiLang === v), text: l,
           onclick: () => { state.uiLang = v; applyI18n(); draw(); } }))),
       h('h3', { text: t('chooseCity') }),
       h('div', { class: 'city-grid', role: 'radiogroup' }, ...cities.map((c) =>

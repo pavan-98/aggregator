@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Taaza · తాజా",
   "short_name": "Taaza",
-  "description": "Ad-free news in English & Telugu with your city’s news and daily gold rates.",
+  "description": "Ad-free news in English, Telugu & Tamil with your city’s news and daily gold rates.",
   "lang": "en-IN",
   "dir": "ltr",
   "start_url": "./#/home",
@@ -26,8 +26,9 @@
     { "src": "assets/screens/city.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "Your city’s news and today’s gold rate" },
     { "src": "assets/screens/gold.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "Gold rates for every karat" },
     { "src": "assets/screens/telugu.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "News in Telugu and English" },
+    { "src": "assets/screens/tamil.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "News in Tamil, for Chennai, Coimbatore, Madurai, Erode and Puducherry" },
     { "src": "assets/screens/trends.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "Price trends and jewellery bill calculator" },
-    { "src": "assets/screens/topics.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "12 topics, no ads, works offline" },
+    { "src": "assets/screens/topics.jpg", "sizes": "1080x1920", "type": "image/jpeg", "form_factor": "narrow", "label": "13 topics, no ads, works offline" },
     { "src": "assets/screens/desktop.jpg", "sizes": "1920x1080", "type": "image/jpeg", "form_factor": "wide", "label": "Taaza on a computer" }
   ]
 }

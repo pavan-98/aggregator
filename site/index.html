@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Taaza · తాజా</title>
-  <meta name="description" content="Ad-free news in English & Telugu with local city news and daily gold rates. Installable, works offline." />
+  <meta name="description" content="Ad-free news in English, Telugu & Tamil with local city news and daily gold rates. Installable, works offline." />
   <!-- Link previews (WhatsApp, Telegram, X, Facebook). Crawlers need absolute URLs:
        scripts/build.mjs replaces __SITE_URL__ with the Pages address at build time. -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Taaza · తాజా" />
   <meta property="og:title" content="Taaza · తాజా: ad-free news & gold rates" />
-  <meta property="og:description" content="News in English & Telugu for your city, plus today's gold rate for every karat. No ads, no tracking. Install it on your phone." />
+  <meta property="og:description" content="News in English, Telugu & Tamil for your city, plus today's gold rate for every karat. No ads, no tracking. Install it on your phone." />
   <meta property="og:url" content="__SITE_URL__" />
   <meta property="og:image" content="__SITE_URL__assets/screens/share.jpg" />
   <meta property="og:image:type" content="image/jpeg" />
@@ -19,6 +19,7 @@
   <meta property="og:image:alt" content="Taaza app showing city news and gold rates" />
   <meta property="og:locale" content="en_IN" />
   <meta property="og:locale:alternate" content="te_IN" />
+  <meta property="og:locale:alternate" content="ta_IN" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="__SITE_URL__" />
   <meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)" />
@@ -35,10 +36,10 @@
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
   <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
-  <!-- Telugu web font (only the Telugu subset is downloaded, and only when Telugu text is shown) -->
+  <!-- Telugu and Tamil web fonts (each script's subset is downloaded only when that script is shown) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="assets/styles.css" />
   <script>
     // Apply theme + language before first paint to avoid a flash.
@@ -62,6 +63,7 @@
         <div class="seg" role="group" aria-label="Language">
           <button type="button" class="seg-btn" data-lang="en" lang="en">EN</button>
           <button type="button" class="seg-btn" data-lang="te" lang="te">తె</button>
+          <button type="button" class="seg-btn" data-lang="ta" lang="ta">த</button>
         </div>
         <button type="button" class="icon-btn" id="btn-refresh" title="Refresh">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>

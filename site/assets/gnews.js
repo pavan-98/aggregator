@@ -1,15 +1,19 @@
 // Shared by the browser app and the Node build scripts.
 // Google News exposes free, key-less RSS for headlines, sections and searches,
-// in many languages (including Telugu: hl=te, ceid=IN:te).
+// in many languages (including Telugu: hl=te, ceid=IN:te, and Tamil: hl=ta, ceid=IN:ta).
 
 export const GN_LOCALE = {
   en: { hl: 'en-IN', gl: 'IN', ceid: 'IN:en' },
   te: { hl: 'te', gl: 'IN', ceid: 'IN:te' },
+  ta: { hl: 'ta', gl: 'IN', ceid: 'IN:ta' },
 };
+
+/** News languages the app and the build know about. */
+export const LANGS = Object.keys(GN_LOCALE);
 
 /**
  * @param {{top?:boolean, section?:string, q?:string, when?:string}} spec
- * @param {'en'|'te'} lang
+ * @param {'en'|'te'|'ta'} lang
  */
 export function googleNewsUrl(spec, lang) {
   const loc = GN_LOCALE[lang] || GN_LOCALE.en;
